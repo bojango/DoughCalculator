@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#070c0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dough Calculator">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>Dough Calculator</title>
+<style>
+:root{
+  --bg:#070c0b;--panel:#0b1210;--panel2:#08100e;--line:#263a34;--line2:#1f312c;
+  --text:#e6eee9;--muted:#789087;--accent:#8cd7ad;--offwhite:#e7e4d8;
+}
+*{box-sizing:border-box}
+html{background:#000;color-scheme:dark;touch-action:manipulation}
+body{
+  margin:0;padding:10px;min-height:100vh;background:#000;color:var(--text);
+  font-family:Menlo,Consolas,"SFMono-Regular",monospace;-webkit-font-smoothing:antialiased;
+  touch-action:manipulation;overscroll-behavior:none
+}
+button,input,select{font:inherit}
+button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#app{width:min(100%,820px);margin:0 auto}
+.shell{border:1px solid var(--line);background:var(--bg);padding:10px}
+.title{border-bottom:1px solid var(--line);padding:3px 2px 11px;font-size:clamp(20px,4vw,28px);font-weight:900;line-height:1;letter-spacing:.06em}
+.label,.tiny{font-size:9px;line-height:1.15;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.bread-label{display:block;margin:11px 0 6px 2px}
+.select-wrap{position:relative}
+.select-wrap:after{content:"▾";position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--accent);pointer-events:none}
+select{appearance:none;-webkit-appearance:none;border-radius:0}
+#bread{
+  width:100%;height:44px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  outline:none;padding:0 34px 0 11px;font-size:16px;font-weight:800
+}
+.main{display:grid;gap:9px;margin-top:10px}
+.left,.right{display:grid;align-content:start;gap:9px;min-width:0}
+.panel,.visual,.advanced-details{border:1px solid var(--line);background:var(--panel)}
+.panel-head{min-height:34px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:7px 11px}
+.inputs{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;padding:5px 10px 7px}
+.field{min-width:0;padding:10px 2px 9px;border-bottom:1px solid var(--line2);background:transparent}
+.field-label{display:block;font-size:9px;line-height:1.2;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.control-row{display:grid;grid-template-columns:24px minmax(0,1fr) 24px;align-items:center;gap:4px;margin-top:5px}
+.step-btn{
+  width:24px;height:28px;border:0;background:transparent;color:#668078;
+  font-size:14px;font-weight:500;line-height:1;padding:0;opacity:.78
+}
+.step-btn:active{color:var(--accent);opacity:1}
+.value-row{display:flex;align-items:baseline;justify-content:center;gap:6px;min-width:0}
+.value-row input{
+  width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--text);
+  padding:0;text-align:center;font-size:20px;font-weight:900
+}
+.unit{font-size:9px;color:var(--muted);text-transform:uppercase}
+.field-select{position:relative;margin-top:6px}
+.field-select:after{content:"▾";position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--accent);pointer-events:none}
+.field-select select{width:100%;min-height:34px;border:0;outline:0;background:transparent;color:var(--text);padding:0 20px 0 0;font-size:16px;font-weight:800}
+
+summary{
+  list-style:none;cursor:pointer;min-height:43px;display:flex;align-items:center;justify-content:space-between;
+  padding:8px 11px;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent
+}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:17px;color:var(--accent)}
+details[open]>summary::after{content:"−"}
+
+.advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;border-top:1px solid var(--line);padding:4px 10px 7px}
+.adv-field{min-width:0;padding:9px 2px;border-bottom:1px solid var(--line2)}
+.adv-field .control-row{grid-template-columns:22px minmax(0,1fr) 22px;margin-top:4px}
+.adv-field .step-btn{width:22px;height:26px;font-size:13px}
+.adv-field .value-row input{font-size:16px}
+.adv-field select{
+  width:100%;min-height:34px;margin-top:4px;border:0;outline:0;background:transparent;color:var(--text);
+  padding:0;font-size:16px;font-weight:800
+}
+.switch-line{display:flex;min-height:34px;align-items:center;justify-content:space-between;gap:8px}
+.toggle{position:relative;width:36px;height:20px;flex:0 0 auto}
+.toggle input{position:absolute;opacity:0}
+.track{position:absolute;inset:0;border:1px solid var(--line);background:var(--panel2)}
+.track:before{content:"";position:absolute;width:12px;height:12px;left:3px;top:3px;background:var(--muted);transition:.15s}
+.toggle input:checked+.track:before{transform:translateX(16px);background:var(--accent)}
+.estimate-note{grid-column:1/-1;padding:6px 2px 2px;font-size:8px;line-height:1.4;color:var(--muted)}
+
+.calc{min-height:44px;width:100%;border:1px solid var(--accent);background:var(--accent);color:var(--bg);padding:10px 14px;font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.secondary{min-height:39px;border:1px solid var(--line);background:transparent;color:var(--text);padding:8px 10px;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.status{min-height:15px;text-align:center;font-size:8px;color:var(--accent)}
+
+.result-row{display:grid;grid-template-columns:minmax(0,1fr) 52px 82px;align-items:center;gap:7px;min-height:34px;border-bottom:1px solid #1b2b26;padding:5px 11px}
+.result-row:last-child{border-bottom:0}
+.result-name{font-size:12px;font-weight:800;min-width:0}
+.result-pct{justify-self:start;border:1px solid var(--line);padding:2px 4px;font-size:8px;color:var(--muted);white-space:nowrap}
+.result-mass{text-align:right;font-size:16px;font-weight:900;white-space:nowrap}
+.group{border-bottom:1px solid #1b2b26;background:var(--panel2);padding:5px 11px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.yield-line{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 11px;border-bottom:1px solid var(--line);font-size:8px;line-height:1.35;color:var(--muted)}
+.note{border-top:1px solid var(--line);padding:6px 11px;font-size:8px;line-height:1.4;color:var(--muted)}
+.method{border:1px solid var(--line);background:var(--panel)}
+.method summary{color:var(--accent)}
+.method-list{margin:0;border-top:1px solid var(--line);padding:8px 12px 9px 27px;font-size:10px;line-height:1.45;color:#c9d5cf}
+.method-list li{margin-bottom:4px}
+.visual{position:relative;overflow:hidden;min-height:98px;padding:9px 10px}
+.visual-head{display:flex;justify-content:space-between;gap:8px;position:relative;z-index:2}
+.stage{min-height:70px;display:flex;align-items:center;justify-content:center;padding:5px 0 0;opacity:.26;transform:scale(1.22);transform-origin:center}
+.foot{padding-top:5px;text-align:center;font-size:8px;color:var(--muted)}
+.hidden{display:none!important}
+
+/* profiles */
+.ball{width:17px;height:17px;border-radius:999px;background:var(--offwhite)}
+.bun{width:22px;height:16px;border-radius:999px;background:var(--offwhite)}
+.roll{position:relative;width:24px;height:21px;border-radius:999px;background:var(--offwhite)}
+.roll:after{content:"";position:absolute;width:12px;height:10px;left:6px;top:4px;border:2px solid var(--bg);border-left-color:transparent;border-radius:50%;transform:rotate(-25deg)}
+.foc{position:relative;width:112px;height:41px;border-radius:5px;background:var(--offwhite)}
+.foc i{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--bg)}
+.foc i:nth-child(1){left:18px;top:10px}.foc i:nth-child(2){left:42px;top:24px}.foc i:nth-child(3){left:68px;top:11px}.foc i:nth-child(4){left:91px;top:23px}
+.sd{position:relative;width:106px;height:54px;border-radius:50%;background:var(--offwhite)}
+.sd:after{content:"";position:absolute;width:58px;height:3px;left:24px;top:25px;background:var(--bg);transform:rotate(-17deg)}
+.slice{position:relative;width:72px;height:58px;background:var(--offwhite);border-radius:31px 31px 7px 7px}
+.slice:before,.slice:after{content:"";position:absolute;top:-4px;width:40px;height:26px;background:var(--offwhite);border-radius:55% 55% 35% 35%}
+.slice:before{left:1px}.slice:after{right:1px}
+.milkicon{display:flex;align-items:flex-end;gap:4px;height:59px}
+.milkicon span{width:30px;height:48px;background:var(--offwhite);border-radius:19px 19px 5px 5px}
+.pairs{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:15px}
+.pair{display:flex;flex-direction:column;align-items:center;gap:7px}
+
+input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(min-width:680px){
+  .main{grid-template-columns:1fr 1fr;gap:11px}.shell{padding:12px}
+  .advanced-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:390px){
+  body{padding:7px}.shell{padding:8px}
+  .result-row{grid-template-columns:minmax(0,1fr) 47px 72px;padding-left:8px;padding-right:8px}
+  .result-mass{font-size:15px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="shell">
+    <div class="title">DOUGH CALCULATOR</div>
+
+    <label class="label bread-label" for="bread">Bread type</label>
+    <div class="select-wrap">
+      <select id="bread">
+        <option value="pizza">Pizza</option>
+        <option value="focaccia">Focaccia</option>
+        <option value="sandwich">White sandwich loaf</option>
+        <option value="sourdough">Sourdough loaf</option>
+        <option value="milk">Japanese milk bread</option>
+        <option value="brioche">Brioche</option>
+        <option value="cinnamon">Cinnamon buns</option>
+      </select>
+    </div>
+
+    <div class="main">
+      <div class="left">
+        <section class="panel">
+          <div class="panel-head"><span class="label">Primary inputs</span></div>
+          <div id="inputs" class="inputs"></div>
+        </section>
+
+        <details id="advancedDetails" class="advanced-details">
+          <summary>Advanced settings</summary>
+          <div id="advancedGrid" class="advanced-grid"></div>
+        </details>
+
+        <button id="calc" class="calc" type="button">Calculate dough</button>
+
+        <div class="actions">
+          <button id="reset" class="secondary" type="button">Reset preset</button>
+          <button id="copyRecipe" class="secondary" type="button">Copy recipe</button>
+        </div>
+        <div id="status" class="status"></div>
+      </div>
+
+      <div class="right">
+        <section class="panel" aria-live="polite">
+          <div class="panel-head">
+            <span class="label">Ingredient output</span>
+            <span id="total" class="label" style="color:var(--accent)"></span>
+          </div>
+          <div id="yieldLine" class="yield-line"></div>
+          <div id="rows"></div>
+          <div id="note" class="note"></div>
+        </section>
+
+        <details id="method" class="method">
+          <summary>Method</summary>
+          <ul id="methodList" class="method-list"></ul>
+        </details>
+
+        <section class="visual">
+          <div class="visual-head">
+            <span id="visualTitle" class="label"></span>
+            <span id="visualLabel" class="tiny"></span>
+          </div>
+          <div id="stage" class="stage"></div>
+        </section>
+      </div>
+    </div>
+
+    <div id="foot" class="foot"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const root = document.getElementById('app');
+  if (!root || root.dataset.ready) return;
+  root.dataset.ready = '1';
+
+  const $ = s => root.querySelector(s);
+  const names = { idy:'Instant dry yeast', ady:'Active dry yeast', fresh:'Fresh yeast', starter:'Sourdough starter' };
+
+  const recipes = {
+    pizza:{
+      mode:'balls',hyd:65,salt:2.5,oil:true,oilPct:2,types:['idy','ady','fresh','starter'],def:'idy',starter:20,
+      yeastPct:{idy:.10,ady:.125,fresh:.30},ferment:{hours:24,temp:4},
+      desc:'Lean pizza dough. Advanced settings can tune salt, oil and fermentation-aware yeast.',
+      method:['Knead 5–7 min until smooth.','Ferment until puffy.','Divide into the selected number of balls.','Rest balls before stretching.','Top and bake as hot as your oven allows.']
+    },
+    focaccia:{
+      mode:'flour',flour:360,hyd:78.9,salt:2.5,types:['idy','ady','fresh'],def:'idy',
+      yeastPct:{idy:.833,ady:1.04,fresh:2.50},ferment:{hours:3.5,temp:27},
+      desc:'Big-and-bubbly focaccia: high hydration, a little sugar, and olive oil in the dough and pan.',
+      method:['Mix flour, salt, sugar and yeast.','Add water + dough olive oil; mix until homogeneous.','Rest 15 min.','Do 3–4 bowl-fold sets, 15 min apart.','Ferment until airy and bubbly.','Oil pan; transfer dough and gently stretch.','Proof until puffy; dimple; add topping oil + flaky salt.','Bake at 220–230°C until deeply golden.']
+    },
+    sandwich:{
+      mode:'flour',flour:360,hyd:63.1,salt:2.22,types:['idy','ady','fresh'],def:'idy',
+      yeastPct:{idy:1.67,ady:2.09,fresh:5.0},
+      desc:'Classic soft white sandwich loaf with milk, butter and sugar.',
+      method:['Heat milk to a simmer; pour over butter.','Cool to lukewarm.','Mix in sugar and yeast.','Add flour + salt; knead 6–8 min.','Rise about 1 hr.','Shape into loaf tin.','Proof about 1 hr until domed above tin.','Bake at 175°C for 30–35 min; cool.']
+    },
+    sourdough:{
+      mode:'flour',flour:500,hyd:75,salt:2,types:['starter'],def:'starter',starter:20,
+      desc:'Lean sourdough: 75% total hydration, 20% active 100%-hydration starter.',
+      method:['Mix flour + most water; rest 30 min.','Add active starter + salt.','Do 4 stretch-and-fold sets, 30 min apart.','Bulk ferment until airy and 50–75% larger.','Pre-shape; rest 20 min.','Final shape; place in banneton.','Cold proof 8–16 hr.','Score; bake 250°C covered 20 min, then 230°C uncovered 20–25 min.']
+    },
+    milk:{
+      mode:'milk',flour:314,hyd:63.4,types:['idy','ady','fresh'],def:'idy',
+      yeastPct:{idy:2.87,ady:3.59,fresh:8.61},
+      desc:'Hokkaido-style milk bread using tangzhong, milk, egg, dry milk, sugar and butter.',
+      method:['Tangzhong: whisk its flour, water + milk.','Cook 3–5 min until thick; cool.','Add remaining bread flour, whole milk, dry milk, sugar, salt, yeast, egg + butter.','Knead 10–15 min until elastic.','Rise 60–90 min until puffy.','Divide into 4; flatten, fold and roll into logs.','Place side-by-side in loaf tin; proof 40–50 min.','Bake at 175°C for 30–35 min.']
+    },
+    brioche:{
+      mode:'flour',flour:500,hyd:59,salt:2.5,types:['fresh','idy','ady'],def:'fresh',
+      yeastPct:{fresh:7,idy:2.33,ady:2.91},
+      desc:'Classic rich brioche: about 50% egg, 50% butter, 12% sugar and 9% water.',
+      method:['Mix flour, egg, water, sugar, salt + yeast.','Knead until strong and elastic.','Add butter gradually, fully mixing each addition.','Mix until glossy and able to stretch thin.','Rest 1 hr; fold once.','Chill overnight.','Shape buns or loaf; proof until very puffy.','Bake at 190°C until deep golden.']
+    },
+    cinnamon:{
+      mode:'rolls',rolls:8,types:['idy','ady','fresh'],def:'idy',
+      yeastPct:{idy:1.85,ady:2.31,fresh:5.56},
+      desc:'Pillowy tangzhong cinnamon buns with brown-sugar cinnamon filling. Icing omitted.',
+      method:['Tangzhong: cook its milk + flour until thick; cool.','Add dough milk, flour, salt, sugar, yeast + butter.','Knead until smooth and elastic.','Rise until puffy.','Mix filling butter, brown sugar, flour, cinnamon + salt.','Press dough into a rectangle; spread filling.','Roll into a log; cut the selected number of buns.','Proof until puffy.','Bake at 190°C for 14–18 min.']
+    }
+  };
+
+  let lastResult = { title:'', lines:[], yield:'' };
+
+  const fmt = v => {
+    if (!Number.isFinite(v) || v < 0) v = 0;
+    if (v >= 100) return String(Math.round(v));
+    if (v >= 10) return v.toFixed(1).replace(/\.0$/,'');
+    return v.toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
+  };
+  const pct = v => `${Math.round(v*100)/100}%`;
+  const recipe = () => recipes[$('#bread').value];
+
+  function read(id, fallback, min, max) {
+    const el = $('#' + id);
+    let v = parseFloat(el?.value);
+    if (!Number.isFinite(v)) v = fallback;
+    if (min != null) v = Math.max(min,v);
+    if (max != null) v = Math.min(max,v);
+    return v;
+  }
+
+  function stepField(id,label,value,unit,step,min,max,advanced=false) {
+    const wrap = advanced ? 'adv-field' : 'field';
+    return `<label class="${wrap}">
+      <span class="field-label">${label}</span>
+      <span class="control-row">
+        <button class="step-btn" type="button" data-step-target="${id}" data-delta="-${step}" aria-label="Decrease ${label}">−</button>
+        <span class="value-row"><input id="${id}" type="number" value="${value}" step="${step}" min="${min}" max="${max}"><span class="unit">${unit}</span></span>
+        <button class="step-btn" type="button" data-step-target="${id}" data-delta="${step}" aria-label="Increase ${label}">+</button>
+      </span>
+    </label>`;
+  }
+
+  function selectField(id,label,options,advanced=false) {
+    const wrap = advanced ? 'adv-field' : 'field';
+    return `<label class="${wrap}">
+      <span class="field-label">${label}</span>
+      <span class="${advanced?'':'field-select'}"><select id="${id}">${options}</select></span>
+    </label>`;
+  }
+
+  function typeOptions(r) {
+    return r.types.map(t => `<option value="${t}" ${t===r.def?'selected':''}>${names[t]}</option>`).join('');
+  }
+
+  function bindStepButtons(scope=root) {
+    scope.querySelectorAll('[data-step-target]').forEach(btn => {
+      btn.addEventListener('click', ev => {
+        ev.preventDefault();
+        const target = $('#' + btn.dataset.stepTarget);
+        if (!target) return;
+        const delta = parseFloat(btn.dataset.delta);
+        const min = target.min !== '' ? parseFloat(target.min) : -Infinity;
+        const max = target.max !== '' ? parseFloat(target.max) : Infinity;
+        const current = parseFloat(target.value) || 0;
+        const next = Math.min(max, Math.max(min, current + delta));
+        target.value = Math.round(next*100)/100;
+        if (['balls','weight','rolls'].includes(target.id)) renderIcon();
+      }, {passive:false});
+    });
+  }
+
+  function commercialYeastPct(r,type) {
+    const manual = read('yeastPct', r.yeastPct?.[type] || .1, .001, 15);
+    if ($('#yeastCalc')?.value !== 'ferment' || !(r.mode==='balls' || $('#bread').value==='focaccia')) return manual;
+
+    const hours = read('fermentHours', r.ferment?.hours || 24, 1, 120);
+    const tempC = read('fermentTemp', r.ferment?.temp || 4, 1, 35);
+    let idy = 0.4 * (24 / hours) * Math.pow(2, (4 - tempC) / 10);
+    if ($('#bread').value === 'focaccia') idy *= 1.8;
+    idy = Math.max(.02, Math.min(2.5, idy));
+    if (type === 'ady') return idy * 1.25;
+    if (type === 'fresh') return idy * 3;
+    return idy;
+  }
+
+  function addRow(name,p,m) {
+    $('#rows').insertAdjacentHTML('beforeend', `<div class="result-row">
+      <div class="result-name">${name}</div><div class="result-pct">${p}</div><div class="result-mass">${fmt(m)} g</div>
+    </div>`);
+    lastResult.lines.push(`${name}: ${fmt(m)} g${p && p!=='—' ? ` (${p})` : ''}`);
+  }
+
+  function group(text) {
+    $('#rows').insertAdjacentHTML('beforeend', `<div class="group">${text}</div>`);
+    lastResult.lines.push(`\n${text.toUpperCase()}`);
+  }
+
+  function renderInputs() {
+    const r = recipe();
+    let h = '';
+    if (r.mode === 'balls') {
+      h += stepField('balls','Dough balls',3,'qty',1,1,50);
+      h += stepField('weight','Ball size',310,'g',5,50,1000);
+      h += stepField('hyd','Hydration',r.hyd,'%',1,40,100);
+    } else if (r.mode === 'rolls') {
+      h += stepField('rolls','Cinnamon rolls',r.rolls,'qty',1,1,50);
+    } else {
+      h += stepField('flour','Flour basis',r.flour,'g',25,100,5000);
+      h += stepField('hyd',r.mode==='milk'?'Milk + water':'Hydration',r.hyd,'%',1,20,100);
+    }
+    h += selectField('type','Yeast type',typeOptions(r));
+    $('#inputs').innerHTML = h;
+    $('#type').disabled = r.types.length === 1;
+    bindStepButtons($('#inputs'));
+
+    $('#type').addEventListener('change', () => {
+      renderAdvanced();
+      renderMethod();
+      calculate();
+    });
+  }
+
+  function renderAdvanced() {
+    const r = recipe();
+    const type = $('#type')?.value || r.def;
+    let h = '';
+
+    if (r.mode !== 'rolls' && r.mode !== 'milk') {
+      h += stepField('salt','Salt',r.salt,'%',.1,0,10,true);
+    }
+
+    if (type === 'starter') {
+      h += stepField('starter','Starter',r.starter || 20,'%',1,1,100,true);
+      h += stepField('starterHyd','Starter hydration',100,'%',1,25,250,true);
+    } else {
+      const recipePct = r.yeastPct?.[type] || .1;
+
+      if (r.mode==='balls' || $('#bread').value==='focaccia') {
+        h += selectField('yeastCalc','Yeast calculation',
+          `<option value="recipe">Recipe %</option><option value="ferment">Fermentation estimate</option>`,true);
+      }
+
+      h += stepField('yeastPct','Yeast',recipePct,'%',.01,.001,15,true);
+
+      if (r.mode==='balls' || $('#bread').value==='focaccia') {
+        h += `<div id="fermentFields" class="hidden" style="display:contents">
+          ${stepField('fermentHours','Fermentation',r.ferment?.hours||24,'hr',1,1,120,true)}
+          ${stepField('fermentTemp','Temperature',r.ferment?.temp||4,'°C',1,1,35,true)}
+          <div class="estimate-note">Fermentation yeast is an estimated starting point. Dough temperature, flour and fridge performance still matter.</div>
+        </div>`;
+      }
+    }
+
+    if (r.oil) {
+      h += `<div class="adv-field">
+        <div class="switch-line"><span class="field-label">Olive oil</span>
+          <label class="toggle"><input id="oilOn" type="checkbox"><span class="track"></span></label>
+        </div>
+      </div>`;
+      h += `<div id="oilField" class="hidden">${stepField('oil','Oil',r.oilPct||2,'%',.1,0,20,true)}</div>`;
+    }
+
+    $('#advancedGrid').innerHTML = h;
+    bindStepButtons($('#advancedGrid'));
+
+    $('#yeastCalc')?.addEventListener('change', () => {
+      $('#fermentFields')?.classList.toggle('hidden', $('#yeastCalc').value !== 'ferment');
+      renderMethod();
+      calculate();
+    });
+
+    ['yeastPct','fermentHours','fermentTemp','salt','starter','starterHyd','oil'].forEach(id => {
+      $('#' + id)?.addEventListener('change', () => {
+        renderMethod();
+        calculate();
+      });
+    });
+
+    $('#oilOn')?.addEventListener('change', () => {
+      $('#oilField')?.classList.toggle('hidden', !$('#oilOn').checked);
+      renderMethod();
+      calculate();
+    });
+  }
+
+  function resetPreset() {
+    $('#advancedDetails').open = false;
+    $('#method').open = false;
+    $('#status').textContent = '';
+    renderInputs();
+    renderAdvanced();
+    calculate();
+  }
+
+  function renderMethod() {
+    const r = recipe();
+    const key = $('#bread').value;
+    const type = $('#type')?.value || r.def;
+    let steps = [];
+
+    if (key === 'pizza') {
+      const oilOn = !!$('#oilOn')?.checked;
+      if (type === 'starter') {
+        steps.push('Mix flour + water; add active starter + salt.');
+      } else if (type === 'ady') {
+        steps.push('Bloom active dry yeast in a little warm recipe water for 10 min.');
+        steps.push('Mix flour, remaining water + salt; add bloomed yeast.');
+      } else if (type === 'fresh') {
+        steps.push('Crumble fresh yeast into a little recipe water.');
+        steps.push('Mix flour, remaining water + salt; add yeast mixture.');
+      } else {
+        steps.push('Mix flour, water, salt + instant yeast.');
+      }
+      if (oilOn) steps.push('Add olive oil once the dough comes together.');
+      steps.push('Knead 5–7 min until smooth.');
+
+      if (type !== 'starter' && $('#yeastCalc')?.value === 'ferment') {
+        const hrs = read('fermentHours', r.ferment.hours, 1, 120);
+        const temp = read('fermentTemp', r.ferment.temp, 1, 35);
+        steps.push(`${temp <= 8 ? 'Cold ferment' : 'Ferment'} about ${fmt(hrs)} hr at ~${fmt(temp)}°C.`);
+        if (temp <= 8) steps.push('Bring dough towards room temperature for 1–2 hr before baking.');
+      } else {
+        steps.push('Cover and ferment until puffy.');
+      }
+      steps.push('Divide into the selected number of balls.');
+      steps.push('Rest balls before stretching.');
+      steps.push('Top and bake as hot as your oven allows.');
+    } else {
+      steps = [...r.method];
+      if (type === 'ady') steps.unshift('Bloom active dry yeast in a little warm recipe liquid for 10 min.');
+      if (type === 'fresh') steps.unshift('Crumble fresh yeast into a little recipe liquid before mixing.');
+
+      if (key === 'focaccia' && $('#yeastCalc')?.value === 'ferment') {
+        const hrs = read('fermentHours', r.ferment.hours, 1, 120);
+        const temp = read('fermentTemp', r.ferment.temp, 1, 35);
+        steps = steps.filter(s => !/^Ferment until airy/i.test(s));
+        const idx = Math.min(4, steps.length);
+        steps.splice(idx,0,`${temp <= 8 ? 'Cold ferment' : 'Ferment'} about ${fmt(hrs)} hr at ~${fmt(temp)}°C.`);
+      }
+    }
+
+    $('#methodList').innerHTML = steps.map(s => `<li>${s}</li>`).join('');
+  }
+
+  function pairs(count, cls) {
+    let h = `<div class="pairs">`;
+    for (let i=0;i<count;i+=2) {
+      h += `<div class="pair"><span class="${cls}"></span>${i+1<count?`<span class="${cls}"></span>`:''}</div>`;
+    }
+    return h + '</div>';
+  }
+
+  function renderIcon() {
+    const k = $('#bread').value;
+    const stage = $('#stage');
+    $('#visualLabel').textContent = '';
+
+    if (k==='pizza') {
+      const c=Math.round(read('balls',3,1,50)), w=read('weight',310,50,1000);
+      $('#visualTitle').textContent='DOUGH PORTIONS';
+      $('#visualLabel').textContent=`${c} × ${fmt(w)} G`;
+      stage.innerHTML=pairs(c,'ball');
+    } else if (k==='cinnamon') {
+      const c=Math.round(read('rolls',8,1,50));
+      $('#visualTitle').textContent='CINNAMON BUNS';
+      $('#visualLabel').textContent=`${c} ROLLS`;
+      stage.innerHTML=pairs(c,'roll');
+    } else if (k==='focaccia') {
+      $('#visualTitle').textContent='FOCACCIA PROFILE';
+      stage.innerHTML=`<div class="foc"><i></i><i></i><i></i><i></i></div>`;
+    } else if (k==='sandwich') {
+      $('#visualTitle').textContent='LOAF PROFILE';
+      stage.innerHTML=`<div class="slice"></div>`;
+    } else if (k==='sourdough') {
+      $('#visualTitle').textContent='LOAF PROFILE';
+      stage.innerHTML=`<div class="sd"></div>`;
+    } else if (k==='milk') {
+      $('#visualTitle').textContent='MILK BREAD PROFILE';
+      stage.innerHTML=`<div class="milkicon"><span></span><span></span><span></span></div>`;
+    } else {
+      $('#visualTitle').textContent='BRIOCHE BUNS';
+      stage.innerHTML=pairs(4,'bun');
+    }
+  }
+
+  function setYield(rawDough, label, bakeLoss=.12) {
+    const baked = rawDough * (1-bakeLoss);
+    $('#yieldLine').innerHTML = `<span>${label}</span><span>Raw dough ${fmt(rawDough)} g${bakeLoss>0?` / baked ~${fmt(baked)} g`:''}</span>`;
+    lastResult.yield = `${label} | Raw dough ${fmt(rawDough)} g${bakeLoss>0?` | Approx. baked ${fmt(baked)} g`:''}`;
+  }
+
+  function calculate() {
+    const key = $('#bread').value;
+    const r = recipe();
+    const type = $('#type').value;
+    $('#rows').innerHTML = '';
+    lastResult = { title:$('#bread').selectedOptions[0].textContent, lines:[], yield:'' };
+
+    let total = 0;
+    let rawDough = 0;
+
+    if (key === 'pizza') {
+      const balls=Math.round(read('balls',3,1,50));
+      const weight=read('weight',310,50,1000);
+      const target=balls*weight;
+      const h=read('hyd',r.hyd,40,100)/100;
+      const s=read('salt',r.salt,0,10)/100;
+      const o=$('#oilOn')?.checked ? read('oil',r.oilPct,0,20)/100 : 0;
+
+      if (type === 'starter') {
+        const sp=read('starter',r.starter,1,100)/100;
+        const sh=read('starterHyd',100,25,250)/100;
+        const tf=target/(1+h+s+o);
+        const sm=tf*sp, sf=sm/(1+sh), sw=sm-sf;
+        addRow('Flour to add','100%',tf-sf);
+        addRow('Water to add',pct(h*100),tf*h-sw);
+        addRow('Salt',pct(s*100),tf*s);
+        addRow('Sourdough starter',pct(sp*100),sm);
+        if(o)addRow('Olive oil',pct(o*100),tf*o);
+      } else {
+        const yp=commercialYeastPct(r,type);
+        const y=yp/100;
+        const f=target/(1+h+s+o+y);
+        addRow('Flour','100%',f);
+        addRow('Water',pct(h*100),f*h);
+        addRow('Salt',pct(s*100),f*s);
+        addRow(names[type],pct(yp),f*y);
+        if(o)addRow('Olive oil',pct(o*100),f*o);
+      }
+
+      total=rawDough=target;
+      setYield(rawDough,`${balls} × ${fmt(weight)} g portions`,0);
+      $('#foot').textContent=`${balls} × ${fmt(weight)} g dough balls`;
+
+    } else if (key === 'focaccia') {
+      const f=read('flour',r.flour,100,5000);
+      const h=read('hyd',r.hyd,40,100)/100;
+      const s=read('salt',r.salt,0,10)/100;
+      const yp=commercialYeastPct(r,type), y=yp/100;
+      const sugar=f*5/360, doughOil=f*18/360, topOil=f*26/360;
+
+      addRow('Flour','100%',f);
+      addRow('Water',pct(h*100),f*h);
+      addRow('Salt',pct(s*100),f*s);
+      addRow('Sugar',pct(5/360*100),sugar);
+      addRow(names[type],pct(yp),f*y);
+      addRow('Olive oil — dough','5%',doughOil);
+      addRow('Olive oil — pan/top',pct(26/360*100),topOil);
+
+      rawDough=f+f*h+f*s+sugar+f*y+doughOil;
+      total=rawDough+topOil;
+      setYield(rawDough,'1 focaccia',.13);
+      $('#foot').textContent=`${fmt(f)} g flour basis // focaccia`;
+
+    } else if (key === 'sandwich') {
+      const f=read('flour',r.flour,100,5000);
+      const h=read('hyd',r.hyd,40,100)/100;
+      const yp=read('yeastPct',r.yeastPct[type],.001,15), y=yp/100;
+      const butter=f*28/360, sugar=f*25/360, salt=f*8/360;
+
+      addRow('Flour','100%',f);
+      addRow('Whole milk',pct(h*100),f*h);
+      addRow('Butter',pct(28/360*100),butter);
+      addRow('Sugar',pct(25/360*100),sugar);
+      addRow('Salt',pct(8/360*100),salt);
+      addRow(names[type],pct(yp),f*y);
+
+      total=rawDough=f+f*h+butter+sugar+salt+f*y;
+      setYield(rawDough,'1 sandwich loaf',.12);
+      $('#foot').textContent=`${fmt(f)} g flour basis // white sandwich loaf`;
+
+    } else if (key === 'sourdough') {
+      const f=read('flour',r.flour,100,5000);
+      const h=read('hyd',r.hyd,40,100)/100;
+      const s=read('salt',r.salt,0,10)/100;
+      const sp=read('starter',r.starter,1,100)/100;
+      const sh=read('starterHyd',100,25,250)/100;
+      const sm=f*sp, sf=sm/(1+sh), sw=sm-sf;
+
+      addRow('Flour to add','100%',f-sf);
+      addRow('Water to add',pct(h*100),f*h-sw);
+      addRow('Salt',pct(s*100),f*s);
+      addRow('Sourdough starter',pct(sp*100),sm);
+
+      total=rawDough=(f-sf)+(f*h-sw)+(f*s)+sm;
+      setYield(rawDough,'1 sourdough loaf',.14);
+      $('#foot').textContent=`${fmt(f)} g total flour basis // sourdough loaf`;
+
+    } else if (key === 'milk') {
+      const f=read('flour',r.flour,100,5000);
+      const sc=f/314;
+      const h=read('hyd',r.hyd,40,100)/100;
+      const liq=f*h;
+      const tw=liq*43/199, tm=liq*43/199, dm=liq*113/199;
+      const yp=read('yeastPct',r.yeastPct[type],.001,15), y=yp/100;
+
+      group('Tangzhong');
+      addRow('Bread flour',pct(14/314*100),14*sc);
+      addRow('Water',pct(tw/f*100),tw);
+      addRow('Whole milk',pct(tm/f*100),tm);
+
+      group('Dough');
+      addRow('Bread flour',pct(300/314*100),300*sc);
+      addRow('Dry milk',pct(14/314*100),14*sc);
+      addRow('Sugar',pct(50/314*100),50*sc);
+      addRow('Salt',pct(6/314*100),6*sc);
+      addRow(names[type],pct(yp),f*y);
+      addRow('Whole milk',pct(dm/f*100),dm);
+      addRow('Egg',pct(50/314*100),50*sc);
+      addRow('Butter',pct(57/314*100),57*sc);
+
+      total=rawDough=f+liq+(14+50+6+50+57)*sc+f*y;
+      setYield(rawDough,'1 milk bread loaf',.11);
+      $('#foot').textContent=`${fmt(f)} g total flour basis // Japanese milk bread`;
+
+    } else if (key === 'brioche') {
+      const f=read('flour',r.flour,100,5000);
+      const h=read('hyd',r.hyd,30,100)/100;
+      const liq=f*h, egg=liq*50/59, water=liq*9/59;
+      const s=read('salt',r.salt,0,10)/100;
+      const yp=read('yeastPct',r.yeastPct[type],.001,15), y=yp/100;
+
+      addRow('Flour','100%',f);
+      addRow('Egg',pct(egg/f*100),egg);
+      addRow('Water',pct(water/f*100),water);
+      addRow('Sugar','12%',f*.12);
+      addRow('Salt',pct(s*100),f*s);
+      addRow('Butter','50%',f*.5);
+      addRow(names[type],pct(yp),f*y);
+
+      total=rawDough=f+egg+water+f*.12+f*s+f*.5+f*y;
+      setYield(rawDough,'Brioche dough',.10);
+      $('#foot').textContent=`${fmt(f)} g flour basis // brioche`;
+
+    } else {
+      const rolls=Math.round(read('rolls',r.rolls,1,50));
+      const sc=rolls/8;
+      const yp=read('yeastPct',r.yeastPct[type],.001,15);
+      const flourTotal=(24+300)*sc;
+      const yeastMass=flourTotal*yp/100;
+
+      group('Tangzhong');
+      addRow('Bread flour','—',24*sc);
+      addRow('Whole milk','—',113*sc);
+
+      group('Dough');
+      addRow('Bread flour','—',300*sc);
+      addRow('Whole milk','—',151*sc);
+      addRow('Salt','—',6*sc);
+      addRow('Granulated sugar','—',25*sc);
+      addRow(names[type],pct(yp),yeastMass);
+      addRow('Unsalted butter','—',57*sc);
+
+      group('Filling');
+      addRow('Butter','—',14*sc);
+      addRow('Brown sugar','—',107*sc);
+      addRow('Bread flour','—',14*sc);
+      addRow('Ground cinnamon','—',9*sc);
+      addRow('Salt','—',.4*sc);
+
+      rawDough=(24+113+300+151+6+25+57)*sc+yeastMass;
+      const filling=(14+107+14+9+.4)*sc;
+      total=rawDough+filling;
+      const per=rawDough/rolls;
+      $('#yieldLine').innerHTML=`<span>${rolls} rolls × ~${fmt(per)} g dough</span><span>Filling ${fmt(filling)} g</span>`;
+      lastResult.yield=`${rolls} rolls × ~${fmt(per)} g dough | Filling ${fmt(filling)} g`;
+      $('#foot').textContent=`${rolls} cinnamon buns`;
+    }
+
+    $('#total').textContent=`TOTAL / ${fmt(total)} G`;
+    $('#note').textContent=r.desc;
+    renderMethod();
+    renderIcon();
+  }
+
+  function buildCopyText() {
+    return [
+      lastResult.title.toUpperCase(),
+      lastResult.yield,
+      '',
+      ...lastResult.lines,
+      '',
+      'METHOD',
+      ...Array.from($('#methodList').children).map((li,i)=>`${i+1}. ${li.textContent}`)
+    ].filter(Boolean).join('\n');
+  }
+
+  async function copyRecipe() {
+    const text = buildCopyText();
+    let copied = false;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      }
+    } catch(e) {}
+
+    if (!copied) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly','');
+      ta.style.position='fixed';
+      ta.style.opacity='0';
+      ta.style.pointerEvents='none';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0,ta.value.length);
+      try { copied = document.execCommand('copy'); } catch(e) {}
+      ta.remove();
+    }
+
+    $('#status').textContent = copied ? 'Copied' : 'Copy failed';
+    window.clearTimeout(copyRecipe.timer);
+    copyRecipe.timer = window.setTimeout(()=>$('#status').textContent='',1800);
+  }
+
+  $('#bread').addEventListener('change', resetPreset);
+  $('#calc').addEventListener('click', calculate);
+  $('#reset').addEventListener('click', () => {
+    resetPreset();
+    $('#status').textContent='Preset reset';
+    window.setTimeout(()=>$('#status').textContent='',1400);
+  });
+  $('#copyRecipe').addEventListener('click', copyRecipe);
+
+  // Extra insurance against Safari's double-tap zoom on rapid +/- use.
+  document.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});
+
+  resetPreset();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    });
+  }
+})();
+</script>
+</body>
+</html>
