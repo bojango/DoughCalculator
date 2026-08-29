@@ -93,12 +93,14 @@ details[open]>summary::after{content:"−"}
 .saved-details{border:1px solid var(--line);background:var(--panel)}
 .saved-list{border-top:1px solid var(--line)}
 .saved-empty{padding:9px 11px;font-size:9px;color:var(--muted)}
-.saved-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px;min-height:40px;padding:6px 9px;border-bottom:1px solid var(--line2)}
+.saved-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:5px;min-height:40px;padding:6px 9px;border-bottom:1px solid var(--line2)}
 .saved-row:last-child{border-bottom:0}
 .saved-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:800}
 .saved-btn{min-height:29px;border:0;background:transparent;color:var(--accent);padding:4px 6px;font-size:8px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .saved-btn.delete{color:var(--muted)}
 .status{min-height:15px;text-align:center;font-size:8px;color:var(--accent)}
+.modified-badge{font-size:8px;letter-spacing:.1em;color:var(--accent);white-space:nowrap}
+.result-sub{margin-top:2px;font-size:7px;font-weight:500;line-height:1.2;color:var(--muted)}
 
 .result-row{display:grid;grid-template-columns:minmax(0,1fr) 52px 82px;align-items:center;gap:7px;min-height:34px;border-bottom:1px solid #1b2b26;padding:5px 11px}
 .result-row:last-child{border-bottom:0}
@@ -169,7 +171,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     <div class="main">
       <div class="left">
         <section class="panel">
-          <div class="panel-head"><span class="label">Primary inputs</span></div>
+          <div class="panel-head"><span class="label">Primary inputs</span><span id="modifiedBadge" class="modified-badge hidden">• MODIFIED</span></div>
           <div id="inputs" class="inputs"></div>
         </section>
 
@@ -213,6 +215,9 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
               <button id="saveRecipe" class="secondary save-wide" type="button">Save recipe</button>
               <button id="reset" class="secondary" type="button">Reset preset</button>
               <button id="copyRecipe" class="secondary" type="button">Copy recipe</button>
+              <button id="exportRecipes" class="secondary" type="button">Export saved</button>
+              <button id="importRecipes" class="secondary" type="button">Import saved</button>
+              <input id="importFile" class="hidden" type="file" accept="application/json,.json">
             </div>
             <details id="savedDetails" class="saved-details">
               <summary>Saved recipes</summary>
@@ -237,6 +242,8 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
   const $ = s => root.querySelector(s);
   const names = { idy:'IDY', ady:'Active dry yeast', fresh:'Fresh yeast', starter:'Sourdough starter' };
   const SAVE_KEY = 'dough-calculator-saved-recipes-v1';
+  const DEFAULT_KEY = 'dough-calculator-default-recipes-v1';
+  const STATE_KEY = 'dough-calculator-last-state-v1';
 
   const recipes = {
     pizza:{
@@ -339,6 +346,8 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
         const next = Math.min(max, Math.max(min, current + delta));
         target.value = Math.round(next*100)/100;
         if (['balls','weight','rolls'].includes(target.id)) renderIcon();
+        updateModifiedBadge();
+        saveLastState();
       }, {passive:false});
     });
   }
@@ -357,11 +366,17 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     return idy;
   }
 
-  function addRow(name,p,m) {
+  function eggNote(grams) {
+    const count=Math.round((grams/50)*2)/2;
+    const shown=Number.isInteger(count)?String(count):count.toFixed(1);
+    return `~${shown} large egg${count===1?'':'s'}`;
+  }
+
+  function addRow(name,p,m,sub='') {
     $('#rows').insertAdjacentHTML('beforeend', `<div class="result-row">
-      <div class="result-name">${name}</div><div class="result-pct">${p}</div><div class="result-mass">${fmt(m)} g</div>
+      <div class="result-name">${name}</div><div class="result-pct">${p}</div><div class="result-mass">${fmt(m)} g${sub?`<div class="result-sub">${sub}</div>`:''}</div>
     </div>`);
-    lastResult.lines.push(`${name}: ${fmt(m)} g${p && p!=='—' ? ` (${p})` : ''}`);
+    lastResult.lines.push(`${name}: ${fmt(m)} g${p && p!=='—' ? ` (${p})` : ''}${sub?` [${sub}]`:''}`);
   }
 
   function group(text) {
@@ -682,7 +697,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       addRow('Salt',pct(6/314*100),6*sc);
       addRow(names[type],pct(yp),f*y);
       addRow('Whole milk',pct(dm/f*100),dm);
-      addRow('Egg',pct(50/314*100),50*sc);
+      addRow('Egg',pct(50/314*100),50*sc,eggNote(50*sc));
       addRow('Butter',pct(57/314*100),57*sc);
 
       total=rawDough=f+liq+(14+50+6+50+57)*sc+f*y;
@@ -697,7 +712,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       const yp=read('yeastPct',r.yeastPct[type],.001,15), y=yp/100;
 
       addRow('Flour','100%',f);
-      addRow('Egg',pct(egg/f*100),egg);
+      addRow('Egg',pct(egg/f*100),egg,eggNote(egg));
       addRow('Water',pct(water/f*100),water);
       addRow('Sugar','12%',f*.12);
       addRow('Salt',pct(s*100),f*s);
@@ -747,6 +762,8 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     $('#note').textContent=r.desc;
     renderMethod();
     renderIcon();
+    updateModifiedBadge();
+    saveLastState();
   }
 
   function loadSavedStore() {
@@ -759,6 +776,81 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
   function writeSavedStore(store) {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(store)); return true; }
     catch(e) { $('#status').textContent='Saving unavailable'; return false; }
+  }
+
+  function loadDefaultMap() {
+    try { const v=JSON.parse(localStorage.getItem(DEFAULT_KEY)||'{}'); return v&&typeof v==='object'?v:{}; }
+    catch(e) { return {}; }
+  }
+
+  function writeDefaultMap(map) {
+    try { localStorage.setItem(DEFAULT_KEY,JSON.stringify(map)); return true; }
+    catch(e) { return false; }
+  }
+
+  function presetIsModified() {
+    const r=recipe(), key=$('#bread').value, type=$('#type')?.value||r.def;
+    const neq=(a,b)=>Math.abs(Number(a)-Number(b))>0.0001;
+    if(type!==r.def) return true;
+    if(key==='pizza'&&(neq(read('balls',3),3)||neq(read('weight',310),310)||neq(read('hyd',r.hyd),r.hyd))) return true;
+    if(key==='cinnamon'&&neq(read('rolls',r.rolls),r.rolls)) return true;
+    if(!['pizza','cinnamon'].includes(key)&&(neq(read('flour',r.flour),r.flour)||neq(read('hyd',r.hyd),r.hyd))) return true;
+    if($('#salt')&&neq(read('salt',r.salt),r.salt)) return true;
+    if($('#starter')&&neq(read('starter',r.starter||20),r.starter||20)) return true;
+    if($('#starterHyd')&&neq(read('starterHyd',100),100)) return true;
+    if($('#yeastCalc')&&$('#yeastCalc').value!=='recipe') return true;
+    if($('#yeastPct')&&neq(read('yeastPct',r.yeastPct?.[type]||0),r.yeastPct?.[type]||0)) return true;
+    if($('#fermentHours')&&neq(read('fermentHours',r.ferment?.hours||24),r.ferment?.hours||24)) return true;
+    if($('#fermentTemp')&&neq(read('fermentTemp',r.ferment?.temp||4),r.ferment?.temp||4)) return true;
+    if($('#oilOn')?.checked) return true;
+    return false;
+  }
+
+  function updateModifiedBadge() {
+    $('#modifiedBadge')?.classList.toggle('hidden',!presetIsModified());
+  }
+
+  function saveLastState() {
+    try {
+      localStorage.setItem(STATE_KEY,JSON.stringify({bread:$('#bread').value,values:captureCurrentSettings(),advancedOpen:$('#advancedDetails').open,savedAt:Date.now()}));
+    } catch(e) {}
+  }
+
+  let stateTimer=null;
+  function scheduleStateSave() { clearTimeout(stateTimer); stateTimer=setTimeout(saveLastState,180); }
+
+  function applyValues(values={}) {
+    if(values.type&&$('#type')) $('#type').value=values.type;
+    renderAdvanced();
+    Object.entries(values).forEach(([id,value])=>{if(id==='oilOn'||id==='type')return;const el=$('#'+id);if(el)el.value=value;});
+    if($('#oilOn')){$('#oilOn').checked=!!values.oilOn;$('#oilField')?.classList.toggle('hidden',!$('#oilOn').checked);}
+    if($('#yeastCalc')){$('#yeastCalc').value=values.yeastCalc||'recipe';$('#fermentFields')?.classList.toggle('hidden',$('#yeastCalc').value!=='ferment');}
+  }
+
+  function restoreLastState() {
+    let state=null;
+    try { state=JSON.parse(localStorage.getItem(STATE_KEY)||'null'); } catch(e) {}
+    if(!state||!recipes[state.bread]) { handleBreadChange(); return; }
+    $('#bread').value=state.bread;
+    renderInputs();
+    applyValues(state.values||{});
+    $('#advancedDetails').open=!!state.advancedOpen;
+    $('#method').open=false;
+    calculate();
+    renderSavedRecipes();
+  }
+
+  function defaultEntryFor(key) {
+    const id=loadDefaultMap()[key];
+    if(!id) return null;
+    const list=loadSavedStore()[key];
+    return Array.isArray(list)?list.find(x=>x.id===id)||null:null;
+  }
+
+  function handleBreadChange() {
+    const entry=defaultEntryFor($('#bread').value);
+    if(entry) applySavedRecipe(entry,{silent:true});
+    else resetPreset();
   }
 
   function captureCurrentSettings() {
@@ -793,37 +885,93 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     }
   }
 
-  function applySavedRecipe(entry) {
+  function applySavedRecipe(entry,options={}) {
     if(!entry||!recipes[entry.bread]) return;
-    $('#bread').value=entry.bread;renderInputs();
-    if(entry.values?.type&&$('#type')) $('#type').value=entry.values.type;
-    renderAdvanced();
-    Object.entries(entry.values||{}).forEach(([id,value])=>{if(id==='oilOn'||id==='type')return;const el=$('#'+id);if(el)el.value=value;});
-    if($('#oilOn')){$('#oilOn').checked=!!entry.values?.oilOn;$('#oilField')?.classList.toggle('hidden',!$('#oilOn').checked);}
-    if($('#yeastCalc')){$('#yeastCalc').value=entry.values?.yeastCalc||'recipe';$('#fermentFields')?.classList.toggle('hidden',$('#yeastCalc').value!=='ferment');}
-    $('#advancedDetails').open=!!entry.advancedOpen;$('#method').open=false;calculate();renderSavedRecipes();
-    $('#status').textContent='Recipe loaded';window.setTimeout(()=>$('#status').textContent='',1400);
+    $('#bread').value=entry.bread;
+    renderInputs();
+    applyValues(entry.values||{});
+    $('#advancedDetails').open=!!entry.advancedOpen;
+    $('#method').open=false;
+    calculate();
+    renderSavedRecipes();
+    updateModifiedBadge();
+    saveLastState();
+    if(!options.silent){$('#status').textContent='Recipe loaded';window.setTimeout(()=>$('#status').textContent='',1400);}
   }
 
   function deleteSavedRecipe(id) {
     const key=$('#bread').value,store=loadSavedStore(),list=Array.isArray(store[key])?store[key]:[],item=list.find(x=>x.id===id);
     if(!item||!window.confirm(`Delete “${item.name}”?`)) return;
-    store[key]=list.filter(x=>x.id!==id);writeSavedStore(store);renderSavedRecipes();
+    store[key]=list.filter(x=>x.id!==id);writeSavedStore(store);
+    const defaults=loadDefaultMap();if(defaults[key]===id){delete defaults[key];writeDefaultMap(defaults);}
+    renderSavedRecipes();
     $('#status').textContent='Saved recipe deleted';window.setTimeout(()=>$('#status').textContent='',1400);
   }
 
+  function setDefaultRecipe(id) {
+    const key=$('#bread').value,defaults=loadDefaultMap();
+    if(defaults[key]===id){delete defaults[key];$('#status').textContent='Default cleared';}
+    else{defaults[key]=id;$('#status').textContent='Default recipe set';}
+    writeDefaultMap(defaults);renderSavedRecipes();
+    window.setTimeout(()=>$('#status').textContent='',1400);
+  }
+
   function renderSavedRecipes() {
-    const key=$('#bread').value,store=loadSavedStore(),list=Array.isArray(store[key])?store[key]:[],wrap=$('#savedList');
+    const key=$('#bread').value,store=loadSavedStore(),list=Array.isArray(store[key])?store[key]:[],wrap=$('#savedList'),defaultId=loadDefaultMap()[key];
     if(!wrap)return;
     if(!list.length){wrap.innerHTML='<div class="saved-empty">No saved recipes for this bread type.</div>';return;}
     wrap.innerHTML='';
     list.sort((a,b)=>(b.savedAt||0)-(a.savedAt||0)).forEach(item=>{
       const row=document.createElement('div');row.className='saved-row';
-      const name=document.createElement('div');name.className='saved-name';name.textContent=item.name;
+      const name=document.createElement('div');name.className='saved-name';name.textContent=item.name+(item.id===defaultId?' •':'');
       const load=document.createElement('button');load.className='saved-btn';load.type='button';load.textContent='Load';load.addEventListener('click',()=>applySavedRecipe(item));
+      const def=document.createElement('button');def.className='saved-btn';def.type='button';def.textContent=item.id===defaultId?'Default ✓':'Default';def.addEventListener('click',()=>setDefaultRecipe(item.id));
       const del=document.createElement('button');del.className='saved-btn delete';del.type='button';del.textContent='Delete';del.addEventListener('click',()=>deleteSavedRecipe(item.id));
-      row.append(name,load,del);wrap.appendChild(row);
+      row.append(name,load,def,del);wrap.appendChild(row);
     });
+  }
+
+  async function exportSavedRecipes() {
+    const payload={version:1,exportedAt:new Date().toISOString(),saved:loadSavedStore(),defaults:loadDefaultMap()};
+    const json=JSON.stringify(payload,null,2);
+    const file=new File([json],'dough-calculator-recipes.json',{type:'application/json'});
+    try {
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+        await navigator.share({title:'Dough Calculator recipes',files:[file]});
+        $('#status').textContent='Exported';
+      } else {
+        const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);$('#status').textContent='Exported';
+      }
+    } catch(e) { if(e?.name!=='AbortError') $('#status').textContent='Export failed'; }
+    window.setTimeout(()=>$('#status').textContent='',1600);
+  }
+
+  function mergeImportedRecipes(payload) {
+    const incoming=payload?.saved&&typeof payload.saved==='object'?payload.saved:payload;
+    if(!incoming||typeof incoming!=='object'||Array.isArray(incoming)) throw new Error('Invalid recipe file');
+    const store=loadSavedStore();
+    Object.entries(incoming).forEach(([key,list])=>{
+      if(!recipes[key]||!Array.isArray(list)) return;
+      const current=Array.isArray(store[key])?store[key]:[];
+      list.forEach(item=>{
+        if(!item||typeof item!=='object'||!item.name||!item.values) return;
+        const idx=current.findIndex(x=>x.id===item.id||x.name?.toLowerCase()===item.name.toLowerCase());
+        if(idx>=0) current[idx]=item; else current.push(item);
+      });
+      store[key]=current;
+    });
+    writeSavedStore(store);
+    if(payload?.defaults&&typeof payload.defaults==='object'){
+      const defaults=loadDefaultMap();Object.entries(payload.defaults).forEach(([key,id])=>{if(recipes[key]&&typeof id==='string')defaults[key]=id;});writeDefaultMap(defaults);
+    }
+  }
+
+  async function importSavedFile(file) {
+    if(!file)return;
+    try {
+      const payload=JSON.parse(await file.text());mergeImportedRecipes(payload);renderSavedRecipes();$('#status').textContent='Recipes imported';
+    } catch(e) { $('#status').textContent='Import failed'; }
+    $('#importFile').value='';window.setTimeout(()=>$('#status').textContent='',1800);
   }
 
   function buildCopyText() {
@@ -868,7 +1016,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     copyRecipe.timer = window.setTimeout(()=>$('#status').textContent='',1800);
   }
 
-  $('#bread').addEventListener('change', resetPreset);
+  $('#bread').addEventListener('change', handleBreadChange);
   $('#calc').addEventListener('click', calculate);
   $('#reset').addEventListener('click', () => {
     resetPreset();
@@ -877,11 +1025,17 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
   });
   $('#copyRecipe').addEventListener('click', copyRecipe);
   $('#saveRecipe').addEventListener('click', saveCurrentRecipe);
+  $('#exportRecipes').addEventListener('click', exportSavedRecipes);
+  $('#importRecipes').addEventListener('click',()=>$('#importFile').click());
+  $('#importFile').addEventListener('change',()=>importSavedFile($('#importFile').files?.[0]));
+
+  root.addEventListener('input',e=>{if(e.target.matches('input[type=number]')){updateModifiedBadge();scheduleStateSave();}});
+  root.addEventListener('change',e=>{if(e.target.matches('input,select')){updateModifiedBadge();saveLastState();}});
 
   // Extra insurance against Safari's double-tap zoom on rapid +/- use.
   document.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});
 
-  resetPreset();
+  restoreLastState();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
