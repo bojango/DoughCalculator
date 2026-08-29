@@ -631,12 +631,13 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       const f=read('flour',r.flour,100,5000);
       const h=read('hyd',r.hyd,40,100)/100;
       const yp=read('yeastPct',r.yeastPct[type],.001,15), y=yp/100;
-      const butter=f*.07, sugar=f*.05, salt=f*.02;
+      const s=read('salt',r.salt,0,10)/100;
+      const butter=f*.07, sugar=f*.05, salt=f*s;
 
       addRow('Strong white bread flour','100%',f);
       addRow('Whole milk',pct(h*100),f*h);
       addRow(names[type],pct(yp),f*y);
-      addRow('Fine salt','2%',salt);
+      addRow('Fine salt',pct(s*100),salt);
       addRow('Sugar / honey','5%',sugar);
       addRow('Softened butter','7%',butter);
 
