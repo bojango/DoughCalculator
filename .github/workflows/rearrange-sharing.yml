@@ -15,9 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Update calculator layout
-        shell: python
         run: |
+          python - <<'PY'
           from pathlib import Path
+          import re
 
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
@@ -83,9 +84,9 @@ jobs:
           sw_text = sw.read_text(encoding='utf-8').replace("dough-calculator-v4", "dough-calculator-v5", 1)
           sw.write_text(sw_text, encoding='utf-8')
 
-          import re
           script = re.search(r'<script>\s*(.*?)\s*</script>', s, re.S).group(1)
           Path('/tmp/calculator.js').write_text(script, encoding='utf-8')
+          PY
       - name: Check JavaScript
         run: node --check /tmp/calculator.js
       - name: Commit changes
