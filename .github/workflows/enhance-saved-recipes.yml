@@ -1,0 +1,107 @@
+name: Enhance saved recipes and state
+on:
+  push:
+    paths:
+      - '.github/workflows/enhance-saved-recipes.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch calculator
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          def rep(old,new,count=1):
+              global s
+              if old not in s:
+                  raise SystemExit('Missing patch target: '+old[:120])
+              s=s.replace(old,new,count)
+
+          rep(".saved-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px;min-height:40px;padding:6px 9px;border-bottom:1px solid var(--line2)}",
+              ".saved-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:5px;min-height:40px;padding:6px 9px;border-bottom:1px solid var(--line2)}")
+          rep(".status{min-height:15px;text-align:center;font-size:8px;color:var(--accent)}",
+              ".status{min-height:15px;text-align:center;font-size:8px;color:var(--accent)}\n.modified-badge{font-size:8px;letter-spacing:.1em;color:var(--accent);white-space:nowrap}\n.result-sub{margin-top:2px;font-size:7px;font-weight:500;line-height:1.2;color:var(--muted)}")
+
+          rep('<div class="panel-head"><span class="label">Primary inputs</span></div>',
+              '<div class="panel-head"><span class="label">Primary inputs</span><span id="modifiedBadge" class="modified-badge hidden">• MODIFIED</span></div>')
+
+          rep('''            <div class="actions">\n              <button id="saveRecipe" class="secondary save-wide" type="button">Save recipe</button>\n              <button id="reset" class="secondary" type="button">Reset preset</button>\n              <button id="copyRecipe" class="secondary" type="button">Copy recipe</button>\n            </div>''',
+              '''            <div class="actions">\n              <button id="saveRecipe" class="secondary save-wide" type="button">Save recipe</button>\n              <button id="reset" class="secondary" type="button">Reset preset</button>\n              <button id="copyRecipe" class="secondary" type="button">Copy recipe</button>\n              <button id="exportRecipes" class="secondary" type="button">Export saved</button>\n              <button id="importRecipes" class="secondary" type="button">Import saved</button>\n              <input id="importFile" class="hidden" type="file" accept="application/json,.json">\n            </div>''')
+
+          rep("  const SAVE_KEY = 'dough-calculator-saved-recipes-v1';",
+              "  const SAVE_KEY = 'dough-calculator-saved-recipes-v1';\n  const DEFAULT_KEY = 'dough-calculator-default-recipes-v1';\n  const STATE_KEY = 'dough-calculator-last-state-v1';")
+
+          rep("        if (['balls','weight','rolls'].includes(target.id)) renderIcon();",
+              "        if (['balls','weight','rolls'].includes(target.id)) renderIcon();\n        updateModifiedBadge();\n        saveLastState();")
+
+          old_add='''  function addRow(name,p,m) {\n    $('#rows').insertAdjacentHTML('beforeend', `<div class="result-row">\n      <div class="result-name">${name}</div><div class="result-pct">${p}</div><div class="result-mass">${fmt(m)} g</div>\n    </div>`);\n    lastResult.lines.push(`${name}: ${fmt(m)} g${p && p!=='—' ? ` (${p})` : ''}`);\n  }'''
+          new_add='''  function eggNote(grams) {\n    const count=Math.round((grams/50)*2)/2;\n    const shown=Number.isInteger(count)?String(count):count.toFixed(1);\n    return `~${shown} large egg${count===1?'':'s'}`;\n  }\n\n  function addRow(name,p,m,sub='') {\n    $('#rows').insertAdjacentHTML('beforeend', `<div class="result-row">\n      <div class="result-name">${name}</div><div class="result-pct">${p}</div><div class="result-mass">${fmt(m)} g${sub?`<div class="result-sub">${sub}</div>`:''}</div>\n    </div>`);\n    lastResult.lines.push(`${name}: ${fmt(m)} g${p && p!=='—' ? ` (${p})` : ''}${sub?` [${sub}]`:''}`);\n  }'''
+          rep(old_add,new_add)
+
+          rep("      addRow('Egg',pct(50/314*100),50*sc);",
+              "      addRow('Egg',pct(50/314*100),50*sc,eggNote(50*sc));")
+          rep("      addRow('Egg',pct(egg/f*100),egg);",
+              "      addRow('Egg',pct(egg/f*100),egg,eggNote(egg));")
+
+          # Add persistence/default helpers after saved-store writer.
+          marker='''  function writeSavedStore(store) {\n    try { localStorage.setItem(SAVE_KEY, JSON.stringify(store)); return true; }\n    catch(e) { $('#status').textContent='Saving unavailable'; return false; }\n  }\n'''
+          insert='''  function writeSavedStore(store) {\n    try { localStorage.setItem(SAVE_KEY, JSON.stringify(store)); return true; }\n    catch(e) { $('#status').textContent='Saving unavailable'; return false; }\n  }\n\n  function loadDefaultMap() {\n    try { const v=JSON.parse(localStorage.getItem(DEFAULT_KEY)||'{}'); return v&&typeof v==='object'?v:{}; }\n    catch(e) { return {}; }\n  }\n\n  function writeDefaultMap(map) {\n    try { localStorage.setItem(DEFAULT_KEY,JSON.stringify(map)); return true; }\n    catch(e) { return false; }\n  }\n\n  function presetIsModified() {\n    const r=recipe(), key=$('#bread').value, type=$('#type')?.value||r.def;\n    const neq=(a,b)=>Math.abs(Number(a)-Number(b))>0.0001;\n    if(type!==r.def) return true;\n    if(key==='pizza'&&(neq(read('balls',3),3)||neq(read('weight',310),310)||neq(read('hyd',r.hyd),r.hyd))) return true;\n    if(key==='cinnamon'&&neq(read('rolls',r.rolls),r.rolls)) return true;\n    if(!['pizza','cinnamon'].includes(key)&&(neq(read('flour',r.flour),r.flour)||neq(read('hyd',r.hyd),r.hyd))) return true;\n    if($('#salt')&&neq(read('salt',r.salt),r.salt)) return true;\n    if($('#starter')&&neq(read('starter',r.starter||20),r.starter||20)) return true;\n    if($('#starterHyd')&&neq(read('starterHyd',100),100)) return true;\n    if($('#yeastCalc')&&$('#yeastCalc').value!=='recipe') return true;\n    if($('#yeastPct')&&neq(read('yeastPct',r.yeastPct?.[type]||0),r.yeastPct?.[type]||0)) return true;\n    if($('#fermentHours')&&neq(read('fermentHours',r.ferment?.hours||24),r.ferment?.hours||24)) return true;\n    if($('#fermentTemp')&&neq(read('fermentTemp',r.ferment?.temp||4),r.ferment?.temp||4)) return true;\n    if($('#oilOn')?.checked) return true;\n    return false;\n  }\n\n  function updateModifiedBadge() {\n    $('#modifiedBadge')?.classList.toggle('hidden',!presetIsModified());\n  }\n\n  function saveLastState() {\n    try {\n      localStorage.setItem(STATE_KEY,JSON.stringify({bread:$('#bread').value,values:captureCurrentSettings(),advancedOpen:$('#advancedDetails').open,savedAt:Date.now()}));\n    } catch(e) {}\n  }\n\n  let stateTimer=null;\n  function scheduleStateSave() { clearTimeout(stateTimer); stateTimer=setTimeout(saveLastState,180); }\n\n  function applyValues(values={}) {\n    if(values.type&&$('#type')) $('#type').value=values.type;\n    renderAdvanced();\n    Object.entries(values).forEach(([id,value])=>{if(id==='oilOn'||id==='type')return;const el=$('#'+id);if(el)el.value=value;});\n    if($('#oilOn')){$('#oilOn').checked=!!values.oilOn;$('#oilField')?.classList.toggle('hidden',!$('#oilOn').checked);}\n    if($('#yeastCalc')){$('#yeastCalc').value=values.yeastCalc||'recipe';$('#fermentFields')?.classList.toggle('hidden',$('#yeastCalc').value!=='ferment');}\n  }\n\n  function restoreLastState() {\n    let state=null;\n    try { state=JSON.parse(localStorage.getItem(STATE_KEY)||'null'); } catch(e) {}\n    if(!state||!recipes[state.bread]) { handleBreadChange(); return; }\n    $('#bread').value=state.bread;\n    renderInputs();\n    applyValues(state.values||{});\n    $('#advancedDetails').open=!!state.advancedOpen;\n    $('#method').open=false;\n    calculate();\n    renderSavedRecipes();\n  }\n\n  function defaultEntryFor(key) {\n    const id=loadDefaultMap()[key];\n    if(!id) return null;\n    const list=loadSavedStore()[key];\n    return Array.isArray(list)?list.find(x=>x.id===id)||null:null;\n  }\n\n  function handleBreadChange() {\n    const entry=defaultEntryFor($('#bread').value);\n    if(entry) applySavedRecipe(entry,{silent:true});\n    else resetPreset();\n  }\n'''
+          if marker not in s: raise SystemExit('saved-store marker missing')
+          s=s.replace(marker,insert,1)
+
+          # Replace saved-recipe application with reusable value application.
+          start=s.index('  function applySavedRecipe(entry) {')
+          end=s.index('\n  function deleteSavedRecipe',start)
+          s=s[:start]+'''  function applySavedRecipe(entry,options={}) {\n    if(!entry||!recipes[entry.bread]) return;\n    $('#bread').value=entry.bread;\n    renderInputs();\n    applyValues(entry.values||{});\n    $('#advancedDetails').open=!!entry.advancedOpen;\n    $('#method').open=false;\n    calculate();\n    renderSavedRecipes();\n    updateModifiedBadge();\n    saveLastState();\n    if(!options.silent){$('#status').textContent='Recipe loaded';window.setTimeout(()=>$('#status').textContent='',1400);}\n  }\n'''+s[end:]
+
+          # Deleting a default should clear its default mapping.
+          rep("    store[key]=list.filter(x=>x.id!==id);writeSavedStore(store);renderSavedRecipes();",
+              "    store[key]=list.filter(x=>x.id!==id);writeSavedStore(store);\n    const defaults=loadDefaultMap();if(defaults[key]===id){delete defaults[key];writeDefaultMap(defaults);}\n    renderSavedRecipes();")
+
+          # Replace saved list renderer with Default control.
+          start=s.index('  function renderSavedRecipes() {')
+          end=s.index('\n  function buildCopyText',start)
+          s=s[:start]+'''  function setDefaultRecipe(id) {\n    const key=$('#bread').value,defaults=loadDefaultMap();\n    if(defaults[key]===id){delete defaults[key];$('#status').textContent='Default cleared';}\n    else{defaults[key]=id;$('#status').textContent='Default recipe set';}\n    writeDefaultMap(defaults);renderSavedRecipes();\n    window.setTimeout(()=>$('#status').textContent='',1400);\n  }\n\n  function renderSavedRecipes() {\n    const key=$('#bread').value,store=loadSavedStore(),list=Array.isArray(store[key])?store[key]:[],wrap=$('#savedList'),defaultId=loadDefaultMap()[key];\n    if(!wrap)return;\n    if(!list.length){wrap.innerHTML='<div class="saved-empty">No saved recipes for this bread type.</div>';return;}\n    wrap.innerHTML='';\n    list.sort((a,b)=>(b.savedAt||0)-(a.savedAt||0)).forEach(item=>{\n      const row=document.createElement('div');row.className='saved-row';\n      const name=document.createElement('div');name.className='saved-name';name.textContent=item.name+(item.id===defaultId?' •':'');\n      const load=document.createElement('button');load.className='saved-btn';load.type='button';load.textContent='Load';load.addEventListener('click',()=>applySavedRecipe(item));\n      const def=document.createElement('button');def.className='saved-btn';def.type='button';def.textContent=item.id===defaultId?'Default ✓':'Default';def.addEventListener('click',()=>setDefaultRecipe(item.id));\n      const del=document.createElement('button');del.className='saved-btn delete';del.type='button';del.textContent='Delete';del.addEventListener('click',()=>deleteSavedRecipe(item.id));\n      row.append(name,load,def,del);wrap.appendChild(row);\n    });\n  }\n\n  async function exportSavedRecipes() {\n    const payload={version:1,exportedAt:new Date().toISOString(),saved:loadSavedStore(),defaults:loadDefaultMap()};\n    const json=JSON.stringify(payload,null,2);\n    const file=new File([json],'dough-calculator-recipes.json',{type:'application/json'});\n    try {\n      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){\n        await navigator.share({title:'Dough Calculator recipes',files:[file]});\n        $('#status').textContent='Exported';\n      } else {\n        const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);$('#status').textContent='Exported';\n      }\n    } catch(e) { if(e?.name!=='AbortError') $('#status').textContent='Export failed'; }\n    window.setTimeout(()=>$('#status').textContent='',1600);\n  }\n\n  function mergeImportedRecipes(payload) {\n    const incoming=payload?.saved&&typeof payload.saved==='object'?payload.saved:payload;\n    if(!incoming||typeof incoming!=='object'||Array.isArray(incoming)) throw new Error('Invalid recipe file');\n    const store=loadSavedStore();\n    Object.entries(incoming).forEach(([key,list])=>{\n      if(!recipes[key]||!Array.isArray(list)) return;\n      const current=Array.isArray(store[key])?store[key]:[];\n      list.forEach(item=>{\n        if(!item||typeof item!=='object'||!item.name||!item.values) return;\n        const idx=current.findIndex(x=>x.id===item.id||x.name?.toLowerCase()===item.name.toLowerCase());\n        if(idx>=0) current[idx]=item; else current.push(item);\n      });\n      store[key]=current;\n    });\n    writeSavedStore(store);\n    if(payload?.defaults&&typeof payload.defaults==='object'){\n      const defaults=loadDefaultMap();Object.entries(payload.defaults).forEach(([key,id])=>{if(recipes[key]&&typeof id==='string')defaults[key]=id;});writeDefaultMap(defaults);\n    }\n  }\n\n  async function importSavedFile(file) {\n    if(!file)return;\n    try {\n      const payload=JSON.parse(await file.text());mergeImportedRecipes(payload);renderSavedRecipes();$('#status').textContent='Recipes imported';\n    } catch(e) { $('#status').textContent='Import failed'; }\n    $('#importFile').value='';window.setTimeout(()=>$('#status').textContent='',1800);\n  }\n'''+s[end:]
+
+          # Persist state / update modified marker whenever calculation runs.
+          rep("    renderMethod();\n    renderIcon();\n  }\n\n  function loadSavedStore()",
+              "    renderMethod();\n    renderIcon();\n    updateModifiedBadge();\n    saveLastState();\n  }\n\n  function loadSavedStore()")
+
+          # Replace startup/event block.
+          old="""  $('#bread').addEventListener('change', resetPreset);\n  $('#calc').addEventListener('click', calculate);\n  $('#reset').addEventListener('click', () => {\n    resetPreset();\n    $('#status').textContent='Preset reset';\n    window.setTimeout(()=>$('#status').textContent='',1400);\n  });\n  $('#copyRecipe').addEventListener('click', copyRecipe);\n  $('#saveRecipe').addEventListener('click', saveCurrentRecipe);\n\n  // Extra insurance against Safari's double-tap zoom on rapid +/- use.\n  document.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});\n\n  resetPreset();"""
+          new="""  $('#bread').addEventListener('change', handleBreadChange);\n  $('#calc').addEventListener('click', calculate);\n  $('#reset').addEventListener('click', () => {\n    resetPreset();\n    $('#status').textContent='Preset reset';\n    window.setTimeout(()=>$('#status').textContent='',1400);\n  });\n  $('#copyRecipe').addEventListener('click', copyRecipe);\n  $('#saveRecipe').addEventListener('click', saveCurrentRecipe);\n  $('#exportRecipes').addEventListener('click', exportSavedRecipes);\n  $('#importRecipes').addEventListener('click',()=>$('#importFile').click());\n  $('#importFile').addEventListener('change',()=>importSavedFile($('#importFile').files?.[0]));\n\n  root.addEventListener('input',e=>{if(e.target.matches('input[type=number]')){updateModifiedBadge();scheduleStateSave();}});\n  root.addEventListener('change',e=>{if(e.target.matches('input,select')){updateModifiedBadge();saveLastState();}});\n\n  // Extra insurance against Safari's double-tap zoom on rapid +/- use.\n  document.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});\n\n  restoreLastState();"""
+          rep(old,new)
+
+          p.write_text(s)
+
+          sw=Path('sw.js')
+          x=sw.read_text()
+          x=x.replace("const CACHE='dough-calculator-v6';","const CACHE='dough-calculator-v7';")
+          sw.write_text(x)
+          PY
+      - name: Check JavaScript
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          s=Path('index.html').read_text()
+          js=re.search(r'<script>\s*(.*?)\s*</script>',s,re.S).group(1)
+          Path('/tmp/check.js').write_text(js)
+          PY
+          node --check /tmp/check.js
+      - name: Commit update
+        shell: bash
+        run: |
+          rm .github/workflows/enhance-saved-recipes.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Improve saved recipes and persistent state'
+          git push
