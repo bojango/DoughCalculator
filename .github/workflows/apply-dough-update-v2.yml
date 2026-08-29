@@ -4,14 +4,13 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/apply-dough-update-v2.yml'
 
 permissions:
   contents: write
 
 jobs:
   update:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
