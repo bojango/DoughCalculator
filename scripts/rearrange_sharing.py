@@ -1,0 +1,69 @@
+from pathlib import Path
+import re
+
+p = Path('index.html')
+s = p.read_text(encoding='utf-8')
+
+old_select = '.field-select select{width:100%;min-height:34px;border:0;outline:0;background:transparent;color:var(--text);padding:0 20px 0 0;font-size:16px;font-weight:800}'
+new_select = '.field-select select{width:100%;min-height:34px;border:0;outline:0;background:transparent;color:var(--text);padding:0 20px;font-size:16px;font-weight:800;text-align:center;text-align-last:center}'
+if old_select not in s:
+    raise SystemExit('Yeast select CSS block not found')
+s = s.replace(old_select, new_select, 1)
+
+old_controls = '''
+        <div class="actions">
+          <button id="saveRecipe" class="secondary save-wide" type="button">Save recipe</button>
+          <button id="reset" class="secondary" type="button">Reset preset</button>
+          <button id="copyRecipe" class="secondary" type="button">Copy recipe</button>
+        </div>
+        <details id="savedDetails" class="saved-details">
+          <summary>Saved recipes</summary>
+          <div id="savedList" class="saved-list"></div>
+        </details>
+        <div id="status" class="status"></div>'''
+if old_controls not in s:
+    raise SystemExit('Existing sharing controls block not found')
+s = s.replace(old_controls, '', 1)
+
+old_visual = '''        <section class="visual">
+          <div class="visual-head">
+            <span id="visualTitle" class="label"></span>
+            <span id="visualLabel" class="tiny"></span>
+          </div>
+          <div id="stage" class="stage"></div>
+        </section>'''
+new_visual = old_visual + '''
+
+        <details id="sharingDetails" class="advanced-details">
+          <summary>Sharing / Saved</summary>
+          <div class="sharing-panel">
+            <div class="actions">
+              <button id="saveRecipe" class="secondary save-wide" type="button">Save recipe</button>
+              <button id="reset" class="secondary" type="button">Reset preset</button>
+              <button id="copyRecipe" class="secondary" type="button">Copy recipe</button>
+            </div>
+            <details id="savedDetails" class="saved-details">
+              <summary>Saved recipes</summary>
+              <div id="savedList" class="saved-list"></div>
+            </details>
+            <div id="status" class="status"></div>
+          </div>
+        </details>'''
+if old_visual not in s:
+    raise SystemExit('Visual block not found')
+s = s.replace(old_visual, new_visual, 1)
+
+old_css = '.saved-details{border:1px solid var(--line);background:var(--panel)}'
+new_css = '.sharing-panel{display:grid;gap:8px;border-top:1px solid var(--line);padding:8px}\n' + old_css
+if old_css not in s:
+    raise SystemExit('Saved details CSS anchor not found')
+s = s.replace(old_css, new_css, 1)
+
+p.write_text(s, encoding='utf-8')
+
+sw = Path('sw.js')
+sw_text = sw.read_text(encoding='utf-8').replace('dough-calculator-v4', 'dough-calculator-v5', 1)
+sw.write_text(sw_text, encoding='utf-8')
+
+script = re.search(r'<script>\s*(.*?)\s*</script>', s, re.S).group(1)
+Path('/tmp/calculator.js').write_text(script, encoding='utf-8')
