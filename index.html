@@ -57,7 +57,7 @@ select{appearance:none;-webkit-appearance:none;border-radius:0}
 .unit{font-size:9px;color:var(--muted);text-transform:uppercase}
 .field-select{position:relative;margin-top:6px}
 .field-select:after{content:"▾";position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--accent);pointer-events:none}
-.field-select select{width:100%;min-height:34px;border:0;outline:0;background:transparent;color:var(--text);padding:0 20px 0 0;font-size:16px;font-weight:800}
+.field-select select{width:100%;min-height:34px;border:0;outline:0;background:transparent;color:var(--text);padding:0 20px;font-size:16px;font-weight:800;text-align:center;text-align-last:center}
 
 summary{
   list-style:none;cursor:pointer;min-height:43px;display:flex;align-items:center;justify-content:space-between;
@@ -89,6 +89,7 @@ details[open]>summary::after{content:"−"}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .save-wide{grid-column:1/-1}
 .secondary{min-height:39px;border:1px solid var(--line);background:transparent;color:var(--text);padding:8px 10px;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.sharing-panel{display:grid;gap:8px;border-top:1px solid var(--line);padding:8px}
 .saved-details{border:1px solid var(--line);background:var(--panel)}
 .saved-list{border-top:1px solid var(--line)}
 .saved-empty{padding:9px 11px;font-size:9px;color:var(--muted)}
@@ -179,16 +180,6 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
 
         <button id="calc" class="calc" type="button">Calculate dough</button>
 
-        <div class="actions">
-          <button id="saveRecipe" class="secondary save-wide" type="button">Save recipe</button>
-          <button id="reset" class="secondary" type="button">Reset preset</button>
-          <button id="copyRecipe" class="secondary" type="button">Copy recipe</button>
-        </div>
-        <details id="savedDetails" class="saved-details">
-          <summary>Saved recipes</summary>
-          <div id="savedList" class="saved-list"></div>
-        </details>
-        <div id="status" class="status"></div>
       </div>
 
       <div class="right">
@@ -214,6 +205,22 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
           </div>
           <div id="stage" class="stage"></div>
         </section>
+
+        <details id="sharingDetails" class="advanced-details">
+          <summary>Sharing / Saved</summary>
+          <div class="sharing-panel">
+            <div class="actions">
+              <button id="saveRecipe" class="secondary save-wide" type="button">Save recipe</button>
+              <button id="reset" class="secondary" type="button">Reset preset</button>
+              <button id="copyRecipe" class="secondary" type="button">Copy recipe</button>
+            </div>
+            <details id="savedDetails" class="saved-details">
+              <summary>Saved recipes</summary>
+              <div id="savedList" class="saved-list"></div>
+            </details>
+            <div id="status" class="status"></div>
+          </div>
+        </details>
       </div>
     </div>
 
