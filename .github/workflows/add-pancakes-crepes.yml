@@ -15,6 +15,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Patch calculator
         run: python .github/patch-pancakes-crepes.py
+      - name: Fix portion scaling
+        run: python .github/fix-portion-scaling.py
       - name: Check JavaScript
         run: |
           python - <<'PY'
@@ -31,5 +33,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html sw.js
           git diff --cached --quiet && exit 0
-          git commit -m 'Add pancakes and crepes'
+          git commit -m 'Fix quantity-led batter scaling'
           git push
