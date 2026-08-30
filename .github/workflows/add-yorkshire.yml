@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Repair patch helper
+        run: python .github/fix-patch-yorkshire.py
       - name: Patch calculator
         run: python .github/patch-yorkshire.py
       - name: Check JavaScript
