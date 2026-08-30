@@ -127,6 +127,10 @@ details[open]>summary::after{content:"−"}
 .bun{width:22px;height:16px;border-radius:999px;background:var(--offwhite)}
 .roll{position:relative;width:24px;height:21px;border-radius:999px;background:var(--offwhite)}
 .roll:after{content:"";position:absolute;width:12px;height:10px;left:6px;top:4px;border:2px solid var(--bg);border-left-color:transparent;border-radius:50%;transform:rotate(-25deg)}
+.yorkie{position:relative;width:24px;height:18px;background:var(--offwhite);border-radius:5px 5px 10px 10px;transform:perspective(30px) rotateX(-4deg)}
+.yorkie:after{content:"";position:absolute;left:5px;right:5px;top:3px;height:7px;border-radius:50%;background:var(--bg);opacity:.78}
+.value-row input:disabled{color:var(--muted);opacity:.72}
+.step-btn:disabled{opacity:.18;pointer-events:none}
 .foc{position:relative;width:112px;height:41px;border-radius:5px;background:var(--offwhite)}
 .foc i{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--bg)}
 .foc i:nth-child(1){left:18px;top:10px}.foc i:nth-child(2){left:42px;top:24px}.foc i:nth-child(3){left:68px;top:11px}.foc i:nth-child(4){left:91px;top:23px}
@@ -162,6 +166,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       <select id="bread">
         <option value="pizza">Pizza</option>
         <option value="focaccia">Focaccia</option>
+        <option value="yorkshire">Yorkshire puddings</option>
         <option value="sandwich">White sandwich loaf</option>
         <option value="sourdough">Sourdough loaf</option>
         <option value="milk">Japanese milk bread</option>
@@ -268,6 +273,11 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       desc:'Big-and-bubbly focaccia: high hydration, a little sugar, and olive oil in the dough and pan.',
       method:['Mix flour, salt, sugar and yeast.','Add water + dough olive oil; mix until homogeneous.','Rest 15 min.','Do 3–4 bowl-fold sets, 15 min apart.','Ferment until airy and bubbly.','Oil pan; transfer dough and gently stretch.','Proof until puffy; dimple; add topping oil + flaky salt.','Bake at 220–230°C until deeply golden.']
     },
+    yorkshire:{
+      mode:'yorkshire',flour:150,qty:12,flourPer:12.5,milkPct:120,eggPct:100,oilMlPer:3.75,
+      desc:'Standard muffin-tin Yorkshire puddings. Scaling basis: 4 medium puddings = 50 g plain flour, 1 large egg, 60 ml milk and 1 tbsp sunflower oil.',
+      method:['Heat oven to 230°C / 210°C fan.','Divide the sunflower or vegetable oil between the selected muffin-tin holes.','Heat the tin in the oven until the oil is very hot.','Whisk the plain flour and eggs until smooth.','Gradually whisk in the milk until completely lump-free; season with salt and pepper.','Rest the batter for at least 15 min if time allows, then give it a quick whisk.','Working quickly, divide the batter evenly between the hot muffin-tin holes.','Bake undisturbed for 20–25 min until well risen, crisp and browned. Do not open the oven door during baking.']
+    },
     sandwich:{
       mode:'flour',flour:500,hyd:64,salt:2,types:['idy','ady','fresh'],def:'idy',
       yeastPct:{idy:1.4,ady:1.75,fresh:4.2},
@@ -355,7 +365,8 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
         const current = parseFloat(target.value) || 0;
         const next = Math.min(max, Math.max(min, current + delta));
         target.value = Math.round(next*100)/100;
-        if (['balls','weight','rolls'].includes(target.id)) renderIcon();
+        if (recipe().mode==='yorkshire' && ['yorkQty','flour'].includes(target.id)) syncYorkshireBasisUI();
+        else if (['balls','weight','rolls'].includes(target.id)) renderIcon();
         updateModifiedBadge();
         saveLastState();
       }, {passive:false});
@@ -382,11 +393,11 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     return `~${shown} large egg${count===1?'':'s'}`;
   }
 
-  function addRow(name,p,m,sub='') {
+  function addRow(name,p,m,sub='',unit='g') {
     $('#rows').insertAdjacentHTML('beforeend', `<div class="result-row">
-      <div class="result-name">${name}</div><div class="result-pct">${p}</div><div class="result-mass">${fmt(m)} g${sub?`<div class="result-sub">${sub}</div>`:''}</div>
+      <div class="result-name">${name}</div><div class="result-pct">${p}</div><div class="result-mass">${fmt(m)} ${unit}${sub?`<div class="result-sub">${sub}</div>`:''}</div>
     </div>`);
-    lastResult.lines.push(`${name}: ${fmt(m)} g${p && p!=='—' ? ` (${p})` : ''}${sub?` [${sub}]`:''}`);
+    lastResult.lines.push(`${name}: ${fmt(m)} ${unit}${p && p!=='—' ? ` (${p})` : ''}${sub?` [${sub}]`:''}`);
   }
 
   function group(text) {
@@ -394,10 +405,30 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     lastResult.lines.push(`\n${text.toUpperCase()}`);
   }
 
+  function syncYorkshireBasisUI() {
+    if (recipe().mode !== 'yorkshire') return;
+    const basis=$('#yorkBasis')?.value||'qty';
+    const qty=$('#yorkQty'), flour=$('#flour');
+    if(!qty||!flour) return;
+    if(basis==='qty') flour.value=Math.round((read('yorkQty',recipe().qty,1,60)*recipe().flourPer)*100)/100;
+    else qty.value=Math.round((read('flour',recipe().flour,25,5000)/recipe().flourPer)*10)/10;
+    qty.disabled=basis!=='qty';
+    flour.disabled=basis!=='flour';
+    root.querySelectorAll('[data-step-target="yorkQty"]').forEach(b=>b.disabled=basis!=='qty');
+    root.querySelectorAll('[data-step-target="flour"]').forEach(b=>b.disabled=basis!=='flour');
+    renderIcon();
+  }
+
   function renderInputs() {
     const r = recipe();
+    const key = $('#bread').value;
     let h = '';
-    if (r.mode === 'balls') {
+    $('#advancedDetails').classList.toggle('hidden', r.mode==='yorkshire');
+    if (r.mode === 'yorkshire') {
+      h += selectField('yorkBasis','Scale by','<option value="qty">Quantity</option><option value="flour">Flour weight</option>');
+      h += stepField('yorkQty','Yorkshire puddings',r.qty,'qty',1,1,60);
+      h += stepField('flour','Flour basis',r.flour,'g',12.5,25,5000);
+    } else if (r.mode === 'balls') {
       h += stepField('balls','Dough balls',3,'qty',1,1,50);
       h += stepField('weight','Ball size',310,'g',5,50,1000);
       h += stepField('hyd','Hydration',r.hyd,'%',1,40,100);
@@ -407,20 +438,29 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       h += stepField('flour','Flour basis',r.flour,'g',25,100,5000);
       h += stepField('hyd',r.mode==='milk'?'Milk + water':'Hydration',r.hyd,'%',1,20,100);
     }
-    h += selectField('type','Yeast type',typeOptions(r));
+    if (r.types?.length) h += selectField('type','Yeast type',typeOptions(r));
     $('#inputs').innerHTML = h;
-    $('#type').disabled = r.types.length === 1;
+    if ($('#type')) {
+      $('#type').disabled = r.types.length === 1;
+      $('#type').addEventListener('change', () => {
+        renderAdvanced();
+        renderMethod();
+        calculate();
+      });
+    }
     bindStepButtons($('#inputs'));
 
-    $('#type').addEventListener('change', () => {
-      renderAdvanced();
-      renderMethod();
-      calculate();
-    });
+    if(r.mode==='yorkshire'){
+      syncYorkshireBasisUI();
+      $('#yorkBasis').addEventListener('change',()=>{syncYorkshireBasisUI();updateModifiedBadge();saveLastState();});
+      $('#yorkQty').addEventListener('input',()=>{syncYorkshireBasisUI();updateModifiedBadge();scheduleStateSave();});
+      $('#flour').addEventListener('input',()=>{syncYorkshireBasisUI();updateModifiedBadge();scheduleStateSave();});
+    }
   }
 
   function renderAdvanced() {
     const r = recipe();
+    if (r.mode === 'yorkshire') { $('#advancedGrid').innerHTML=''; return; }
     const type = $('#type')?.value || r.def;
     let h = '';
 
@@ -565,6 +605,11 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       $('#visualTitle').textContent='CINNAMON BUNS';
       $('#visualLabel').textContent=`${c} ROLLS`;
       stage.innerHTML=pairs(c,'roll');
+    } else if (k==='yorkshire') {
+      const c=Math.max(1,Math.round(read('yorkQty',recipe().qty,.1,100)));
+      $('#visualTitle').textContent='YORKSHIRE PUDDINGS';
+      $('#visualLabel').textContent=`~${fmt(read('yorkQty',recipe().qty,.1,100))} PUDS`;
+      stage.innerHTML=pairs(c,'yorkie');
     } else if (k==='focaccia') {
       $('#visualTitle').textContent='FOCACCIA PROFILE';
       stage.innerHTML=`<div class="foc"><i></i><i></i><i></i><i></i></div>`;
@@ -592,14 +637,32 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
   function calculate() {
     const key = $('#bread').value;
     const r = recipe();
-    const type = $('#type').value;
+    const type = $('#type')?.value || r.def || null;
     $('#rows').innerHTML = '';
     lastResult = { title:$('#bread').selectedOptions[0].textContent, lines:[], yield:'' };
 
     let total = 0;
     let rawDough = 0;
+    let totalLabel = 'TOTAL';
 
-    if (key === 'pizza') {
+    if (key === 'yorkshire') {
+      syncYorkshireBasisUI();
+      const f=read('flour',r.flour,25,5000);
+      const q=read('yorkQty',r.qty,.1,100);
+      const milk=f*r.milkPct/100;
+      const eggMass=f*r.eggPct/100;
+      const oilMl=q*r.oilMlPer;
+      addRow('Plain flour','100%',f);
+      addRow('Whole milk',pct(r.milkPct),milk,'','ml');
+      addRow('Large egg',pct(r.eggPct),eggMass,eggNote(eggMass));
+      addRow('Sunflower / vegetable oil','—',oilMl,'for the tin','ml');
+      rawDough=total=f+milk+eggMass;
+      totalLabel='BATTER';
+      $('#yieldLine').innerHTML=`<span>~${fmt(q)} standard muffin-size puddings</span><span>Batter ~${fmt(rawDough)} g</span>`;
+      lastResult.yield=`~${fmt(q)} standard muffin-size Yorkshire puddings | Batter ~${fmt(rawDough)} g`;
+      $('#foot').textContent=`~${fmt(q)} Yorkshire puddings // standard muffin tin`;
+
+    } else if (key === 'pizza') {
       const balls=Math.round(read('balls',3,1,50));
       const weight=read('weight',310,50,1000);
       const target=balls*weight;
@@ -768,7 +831,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       $('#foot').textContent=`${rolls} cinnamon buns`;
     }
 
-    $('#total').textContent=`TOTAL / ${fmt(total)} G`;
+    $('#total').textContent=`${totalLabel} / ${fmt(total)} G`;
     $('#note').textContent=r.desc;
     renderMethod();
     renderIcon();
@@ -804,7 +867,8 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     if(type!==r.def) return true;
     if(key==='pizza'&&(neq(read('balls',3),3)||neq(read('weight',310),310)||neq(read('hyd',r.hyd),r.hyd))) return true;
     if(key==='cinnamon'&&neq(read('rolls',r.rolls),r.rolls)) return true;
-    if(!['pizza','cinnamon'].includes(key)&&(neq(read('flour',r.flour),r.flour)||neq(read('hyd',r.hyd),r.hyd))) return true;
+    if(key==='yorkshire'&&(neq(read('flour',r.flour),r.flour)||neq(read('yorkQty',r.qty),r.qty))) return true;
+    if(!['pizza','cinnamon','yorkshire'].includes(key)&&(neq(read('flour',r.flour),r.flour)||neq(read('hyd',r.hyd),r.hyd))) return true;
     if($('#salt')&&neq(read('salt',r.salt),r.salt)) return true;
     if($('#starter')&&neq(read('starter',r.starter||20),r.starter||20)) return true;
     if($('#starterHyd')&&neq(read('starterHyd',100),100)) return true;
@@ -864,7 +928,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
   }
 
   function captureCurrentSettings() {
-    const ids=['balls','weight','flour','hyd','rolls','type','salt','starter','starterHyd','yeastCalc','yeastPct','fermentHours','fermentTemp','oil'];
+    const ids=['balls','weight','flour','hyd','rolls','yorkBasis','yorkQty','type','salt','starter','starterHyd','yeastCalc','yeastPct','fermentHours','fermentTemp','oil'];
     const values={};
     ids.forEach(id=>{ const el=$('#'+id); if(el) values[id]=el.value; });
     if($('#oilOn')) values.oilOn=$('#oilOn').checked;
@@ -875,6 +939,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     const breadName=$('#bread').selectedOptions[0].textContent;
     if($('#bread').value==='pizza') return `${breadName} ${fmt(read('hyd',recipe().hyd,40,100))}%`;
     if($('#bread').value==='cinnamon') return `${breadName} × ${Math.round(read('rolls',recipe().rolls,1,50))}`;
+    if($('#bread').value==='yorkshire') return `${breadName} × ${fmt(read('yorkQty',recipe().qty,.1,100))}`;
     if($('#flour')) return `${breadName} ${fmt(read('flour',recipe().flour,100,5000))}g`;
     return breadName;
   }
