@@ -425,7 +425,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     const qty=$('#yorkQty'), flour=$('#flour');
     if(!qty||!flour) return;
     if(basis==='qty') flour.value=Math.round((read('yorkQty',recipe().qty,1,60)*recipe().flourPer)*100)/100;
-    else qty.value=Math.round((read('flour',recipe().flour,25,5000)/recipe().flourPer)*10)/10;
+    else qty.value=Math.round((read('flour',recipe().flour,1,5000)/recipe().flourPer)*10)/10;
     qty.disabled=basis!=='qty';
     flour.disabled=basis!=='flour';
     root.querySelectorAll('[data-step-target="yorkQty"]').forEach(b=>b.disabled=basis!=='qty');
@@ -444,7 +444,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       const portionLabel=r.mode==='yorkshire'?'Yorkshire puddings':r.mode==='pancake'?'Pancakes':'Crêpes';
       h += selectField('yorkBasis','Scale by','<option value="qty">Quantity</option><option value="flour">Flour weight</option>');
       h += stepField('yorkQty',portionLabel,r.qty,'qty',1,1,60);
-      h += stepField('flour','Flour basis',r.flour,'g',12.5,25,5000);
+      h += stepField('flour','Flour basis',r.flour,'g',r.flourPer,1,5000);
     } else if (r.mode === 'balls') {
       h += stepField('balls','Dough balls',3,'qty',1,1,50);
       h += stepField('weight','Ball size',310,'g',5,50,1000);
@@ -674,7 +674,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
 
     if (key === 'yorkshire') {
       syncYorkshireBasisUI();
-      const f=read('flour',r.flour,25,5000);
+      const f=read('flour',r.flour,1,5000);
       const q=read('yorkQty',r.qty,.1,100);
       const milk=f*r.milkPct/100;
       const eggMass=f*r.eggPct/100;
@@ -691,7 +691,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
 
     } else if (key === 'pancakes') {
       syncYorkshireBasisUI();
-      const f=read('flour',r.flour,25,5000);
+      const f=read('flour',r.flour,1,5000);
       const q=read('yorkQty',r.qty,.1,100);
       const milk=f*(283/180);
       const eggMass=f*(100/180);
@@ -714,7 +714,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
 
     } else if (key === 'crepes') {
       syncYorkshireBasisUI();
-      const f=read('flour',r.flour,25,5000);
+      const f=read('flour',r.flour,1,5000);
       const q=read('yorkQty',r.qty,.1,100);
       const milk=f*3;
       const eggMass=f;
