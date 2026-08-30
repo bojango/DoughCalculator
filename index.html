@@ -402,8 +402,9 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
   }
 
   function eggNote(grams) {
-    const count=Math.round((grams/50)*2)/2;
-    const shown=Number.isInteger(count)?String(count):count.toFixed(1);
+    const raw=grams/50;
+    const count=raw<1?Math.round(raw*100)/100:Math.round(raw*2)/2;
+    const shown=Number.isInteger(count)?String(count):String(count);
     return `~${shown} large egg${count===1?'':'s'}`;
   }
 
