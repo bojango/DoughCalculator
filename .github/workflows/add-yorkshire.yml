@@ -1,0 +1,35 @@
+name: Add Yorkshire puddings
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-yorkshire.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch calculator
+        run: python .github/patch-yorkshire.py
+      - name: Check JavaScript
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          s=Path('index.html').read_text()
+          js=re.search(r'<script>\s*(.*?)\s*</script>',s,re.S).group(1)
+          Path('/tmp/check.js').write_text(js)
+          PY
+          node --check /tmp/check.js
+      - name: Commit update
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'Add Yorkshire pudding calculator'
+          git push
