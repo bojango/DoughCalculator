@@ -131,6 +131,8 @@ details[open]>summary::after{content:"−"}
 .yorkie:after{content:"";position:absolute;left:5px;right:5px;top:3px;height:7px;border-radius:50%;background:var(--bg);opacity:.78}
 .pancake{width:27px;height:8px;border-radius:50%;background:var(--offwhite)}
 .crepe{width:30px;height:4px;border-radius:50%;background:var(--offwhite)}
+.pita{position:relative;width:48px;height:28px;border-radius:50%;background:var(--offwhite)}
+.pita:after{content:"";position:absolute;left:8px;right:8px;top:50%;height:1px;background:var(--bg);opacity:.35}
 .value-row input:disabled{color:var(--muted);opacity:.72}
 .step-btn:disabled{opacity:.18;pointer-events:none}
 .foc{position:relative;width:112px;height:41px;border-radius:5px;background:var(--offwhite)}
@@ -168,6 +170,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       <select id="bread">
         <option value="pizza">Pizza</option>
         <option value="focaccia">Focaccia</option>
+        <option value="khubz">Lebanese Khubz / Pita</option>
         <option value="yorkshire">Yorkshire puddings</option>
         <option value="pancakes">Pancakes</option>
         <option value="crepes">Crêpes</option>
@@ -277,6 +280,12 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       desc:'Big-and-bubbly focaccia: high hydration, a little sugar, and olive oil in the dough and pan.',
       method:['Mix flour, salt, sugar and yeast.','Add water + dough olive oil; mix until homogeneous.','Rest 15 min.','Do 3–4 bowl-fold sets, 15 min apart.','Ferment until airy and bubbly.','Oil pan; transfer dough and gently stretch.','Proof until puffy; dimple; add topping oil + flaky salt.','Bake at 220–230°C until deeply golden.']
     },
+    khubz:{
+      mode:'flatbread',qty:8,flour:500,flourPer:62.5,hyd:64,salt:2,sugar:2,oilPct:3,types:['idy','ady','fresh'],def:'idy',
+      yeastPct:{idy:1.4,ady:1.75,fresh:4.2},
+      desc:'Lebanese khubz / pita: soft, thin, pocket-forming flatbreads. Base recipe makes 8 from 500 g strong white flour, 320 ml water, 7 g IDY, 10 g salt, 10 g sugar and 15 g olive oil. High heat and even rolling are critical for the pocket.',
+      method:['Mix flour, yeast, sugar and salt. Add the warm water + olive oil and mix to a rough dough.','Knead 8–10 min until smooth, elastic and slightly tacky. Add extra flour only if absolutely necessary.','Cover and rise somewhere warm for 60–90 min, until roughly doubled.','Knock the air out gently; divide into the selected number of equal pieces and shape into balls.','Cover and rest 20 min so the dough relaxes.','Put a pizza stone, baking steel or heavy upside-down tray in the oven. Heat to 250°C / 230°C fan, or as hot as the oven will reliably go, for at least 30 min.','Roll each ball to about 18–20 cm wide and around 3 mm thick. Keep the thickness even and keep waiting dough covered.','Bake one or two breads directly on the very hot surface for roughly 2–3 min, until they balloon. Flip for another 30–60 sec only if necessary; do not overbake.','Stack the cooked breads immediately inside a clean tea towel so trapped steam keeps them soft and flexible.']
+    },
     yorkshire:{
       mode:'yorkshire',flour:150,qty:12,flourPer:12.5,milkPct:120,eggPct:100,oilMlPer:3.75,
       desc:'Standard muffin-tin Yorkshire puddings. Scaling basis: 4 medium puddings = 50 g plain flour, 1 large egg, 60 ml milk and 1 tbsp sunflower oil.',
@@ -380,7 +389,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
         const next = Math.min(max, Math.max(min, current + delta));
         target.value = Math.round(next*100)/100;
         if (['yorkshire','pancake','crepe'].includes(recipe().mode) && ['yorkQty','flour'].includes(target.id)) syncYorkshireBasisUI();
-        else if (['balls','weight','rolls'].includes(target.id)) renderIcon();
+        else if (['balls','weight','rolls','khubzQty'].includes(target.id)) renderIcon();
         updateModifiedBadge();
         saveLastState();
       }, {passive:false});
@@ -450,6 +459,8 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       h += stepField('balls','Dough balls',3,'qty',1,1,50);
       h += stepField('weight','Ball size',310,'g',5,50,1000);
       h += stepField('hyd','Hydration',r.hyd,'%',1,40,100);
+    } else if (r.mode === 'flatbread') {
+      h += stepField('khubzQty','Khubz breads',r.qty,'qty',1,1,50);
     } else if (r.mode === 'rolls') {
       h += stepField('rolls','Cinnamon rolls',r.rolls,'qty',1,1,50);
     } else {
@@ -623,6 +634,11 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       $('#visualTitle').textContent='CINNAMON BUNS';
       $('#visualLabel').textContent=`${c} ROLLS`;
       stage.innerHTML=pairs(c,'roll');
+    } else if (k==='khubz') {
+      const c=Math.round(read('khubzQty',recipe().qty,1,50));
+      $('#visualTitle').textContent='LEBANESE KHUBZ / PITA';
+      $('#visualLabel').textContent=`${c} × 18–20 CM`;
+      stage.innerHTML=pairs(c,'pita');
     } else if (k==='yorkshire') {
       const c=Math.max(1,Math.round(read('yorkQty',recipe().qty,.1,100)));
       $('#visualTitle').textContent='YORKSHIRE PUDDINGS';
@@ -762,6 +778,27 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       total=rawDough=target;
       setYield(rawDough,`${balls} × ${fmt(weight)} g portions`,0);
       $('#foot').textContent=`${balls} × ${fmt(weight)} g dough balls`;
+
+    } else if (key === 'khubz') {
+      const qty=Math.round(read('khubzQty',r.qty,1,50));
+      const f=qty*r.flourPer;
+      const h=r.hyd/100;
+      const s=read('salt',r.salt,0,10)/100;
+      const yp=read('yeastPct',r.yeastPct[type],.001,15), y=yp/100;
+      const water=f*h, salt=f*s, sugar=f*r.sugar/100, oil=f*r.oilPct/100, yeast=f*y;
+
+      addRow('Strong white bread flour','100%',f);
+      addRow('Warm water',pct(r.hyd),water,`~${fmt(water)} ml`);
+      addRow(names[type],pct(yp),yeast);
+      addRow('Fine salt',pct(s*100),salt);
+      addRow('Sugar',pct(r.sugar),sugar);
+      addRow('Olive oil',pct(r.oilPct),oil);
+
+      total=rawDough=f+water+yeast+salt+sugar+oil;
+      const per=rawDough/qty;
+      $('#yieldLine').innerHTML=`<span>${qty} breads × ~${fmt(per)} g dough</span><span>Roll to 18–20 cm / ~3 mm</span>`;
+      lastResult.yield=`${qty} Lebanese khubz / pita × ~${fmt(per)} g dough | Roll to 18–20 cm and ~3 mm thick`;
+      $('#foot').textContent=`${qty} khubz // 18–20 cm // very high heat`;
 
     } else if (key === 'focaccia') {
       const f=read('flour',r.flour,100,5000);
@@ -935,6 +972,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     if(type!==r.def) return true;
     if(key==='pizza'&&(neq(read('balls',3),3)||neq(read('weight',310),310)||neq(read('hyd',r.hyd),r.hyd))) return true;
     if(key==='cinnamon'&&neq(read('rolls',r.rolls),r.rolls)) return true;
+    if(key==='khubz'&&neq(read('khubzQty',r.qty),r.qty)) return true;
     if(['yorkshire','pancakes','crepes'].includes(key)&&(neq(read('flour',r.flour),r.flour)||neq(read('yorkQty',r.qty),r.qty))) return true;
     if(!['pizza','cinnamon','yorkshire','pancakes','crepes'].includes(key)&&(neq(read('flour',r.flour),r.flour)||neq(read('hyd',r.hyd),r.hyd))) return true;
     if($('#salt')&&neq(read('salt',r.salt),r.salt)) return true;
@@ -996,7 +1034,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
   }
 
   function captureCurrentSettings() {
-    const ids=['balls','weight','flour','hyd','rolls','yorkBasis','yorkQty','type','salt','starter','starterHyd','yeastCalc','yeastPct','fermentHours','fermentTemp','oil'];
+    const ids=['balls','weight','flour','hyd','rolls','khubzQty','yorkBasis','yorkQty','type','salt','starter','starterHyd','yeastCalc','yeastPct','fermentHours','fermentTemp','oil'];
     const values={};
     ids.forEach(id=>{ const el=$('#'+id); if(el) values[id]=el.value; });
     if($('#oilOn')) values.oilOn=$('#oilOn').checked;
@@ -1007,6 +1045,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
     const breadName=$('#bread').selectedOptions[0].textContent;
     if($('#bread').value==='pizza') return `${breadName} ${fmt(read('hyd',recipe().hyd,40,100))}%`;
     if($('#bread').value==='cinnamon') return `${breadName} × ${Math.round(read('rolls',recipe().rolls,1,50))}`;
+    if($('#bread').value==='khubz') return `${breadName} × ${Math.round(read('khubzQty',recipe().qty,1,50))}`;
     if(['yorkshire','pancakes','crepes'].includes($('#bread').value)) return `${breadName} × ${fmt(read('yorkQty',recipe().qty,.1,100))}`;
     if($('#flour')) return `${breadName} ${fmt(read('flour',recipe().flour,100,5000))}g`;
     return breadName;
