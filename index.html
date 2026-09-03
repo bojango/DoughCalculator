@@ -616,7 +616,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
       if (type === 'ady') steps.push('Stir the active dry yeast and half the sugar into the warm water; leave 10–15 min until frothy.');
       else if (type === 'fresh') steps.push('Crumble the fresh yeast into the warm water with half the sugar; stir until dissolved.');
       else steps.push('Mix the IDY with the flour; keep the warm water for the wet ingredients.');
-      steps.push('Combine flour, remaining sugar, salt and baking powder. Add yogurt, melted butter or ghee, nigella seeds and the water/yeast mixture; bring together into a very soft dough.');
+      steps.push(`Combine flour, remaining sugar, salt and baking powder. Add yogurt, melted butter or ghee, nigella seeds and ${type === 'idy' ? 'the warm water' : 'the yeast-water mixture'}; bring together into a very soft dough.`);
       steps.push('Knead for about 10 min until smooth and elastic, keeping the dough soft.');
       steps.push('Place in a buttered bowl, cover and leave warm for about 1 hr, until doubled.');
       steps.push('Divide into the selected number of balls and keep covered.');
